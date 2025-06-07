@@ -1,6 +1,13 @@
+/*
+ * @Author: star-cs
+ * @Date: 2025-06-06 09:55:24
+ * @LastEditTime: 2025-06-07 17:53:34
+ * @FilePath: /CChat_server/GateServer/src/logicsystem.cc
+ * @Description: 
+ */
 #include "logicsystem.h"
 #include "httpconnection.h"
-
+#include "verifygrpcclient.h"
 namespace core
 {
     /**
@@ -48,9 +55,9 @@ namespace core
             }
 
             auto email = ori_root["email"].asString();
+            GetVerifyRsp rsp = VerifyGrpcClient::GetInstance()->GetVerifyCode(email);
             std::cout << "email is " << email << std::endl;
-            
-            response_root["error"] = ErrorCodes::Success;
+            response_root["error"] = rsp.error();
             response_root["email"] = ori_root["email"];
             std::string jsonstr = response_root.toStyledString();
             beast::ostream(connection->_response.body()) << jsonstr;

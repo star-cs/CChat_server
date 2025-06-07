@@ -3,7 +3,7 @@
 
 namespace core
 {
-    HttpConnection::HttpConnection(tcp::socket socket) : _socket(std::move(socket)) // asio socket 没有拷贝构造
+    HttpConnection::HttpConnection(boost::asio::io_context& ioc) : _socket(ioc)
     {
     }
 

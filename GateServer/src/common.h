@@ -1,9 +1,18 @@
+/*
+ * @Author: star-cs
+ * @Date: 2025-06-06 09:55:25
+ * @LastEditTime: 2025-06-07 23:20:30
+ * @FilePath: /CChat_server/GateServer/src/common.h
+ * @Description: 通用 头文件 及 工具方法，参数
+ */
+
 #pragma once
 
 #include <boost/beast/http.hpp>
 #include <boost/beast.hpp>
 #include <boost/asio.hpp>
 
+#include <boost/dll.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
@@ -15,6 +24,10 @@
 #include <map>
 #include <unordered_map>
 #include <vector>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+
 
 #include <json/json.h>
 #include <json/reader.h>
@@ -38,13 +51,11 @@ namespace core
 
     extern std::string UrlDecode(const std::string &str);
 
-    
     enum ErrorCodes
     {
         Success = 0,
         Error_Json = 1001, // Json解析错误
         RPCFailed = 1002,  // RPC请求错误
     };
-
 
 }

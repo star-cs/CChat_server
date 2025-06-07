@@ -8,8 +8,11 @@ namespace core
     public:
         friend class LogicSystem;
         
-        HttpConnection(tcp::socket socket);
+        HttpConnection(boost::asio::io_context& ioc);
         void Start();
+        tcp::socket& getSocket(){
+            return _socket;
+        } 
 
     private:
         void CheckDeadline();

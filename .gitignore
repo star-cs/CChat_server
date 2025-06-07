@@ -11,6 +11,13 @@ CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
 
+# cmake
 build
 bin
 lib
+
+# nodejs
+node_modules
+.env.*
+
+

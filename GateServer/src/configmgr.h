@@ -1,3 +1,10 @@
+/*
+ * @Author: star-cs
+ * @Date: 2025-06-06 21:13:05
+ * @LastEditTime: 2025-06-07 20:09:17
+ * @FilePath: /CChat_server/GateServer/src/configmgr.h
+ * @Description: ini配置文件解析 类
+ */
 #pragma once
 #include "common.h"
 
@@ -70,7 +77,7 @@ namespace core
         {
             this->_config_map = src._config_map;
         }
-
+    private:
         ConfigMgr();
 
         bool load(const std::string &filename);

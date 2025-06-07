@@ -1,0 +1,23 @@
+{
+    "VerifyServer": {
+        "host": "0.0.0.0",
+        "port": "50051"
+    },
+    "email": {
+        "host": "smtp.qq.com",
+        "port": 465,
+        "secure": true,
+        "user": "2572523998@qq.com",
+        "pass": "trfmxncasqyvdibb"
+    },
+    "mysql": {
+        "host": "0.0.0.0",
+        "port": "3306",
+        "passwd": "12345"
+    },
+    "redis": {
+        "host": "0.0.0.0",
+        "port": "6379",
+        "passwd": "12345"
+    }
+}
