@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package status;    // 类似于一个 namespace 命名空间
+
+service StatusService{
+    // GateServer(client) --- StatusServer(server)
+    rpc GetChatServer(GetChatServerReq) returns (GetChatServerRsp) {}
+
+    // StatusServer(client) --- ChatServer(server)
+    rpc Login(LoginReq) returns (LoginRsp);
+}
+
+message GetChatServerReq{
+    int32 uid = 1;
+}
+
+message GetChatServerRsp{
+    int32 error = 1;
+    string host = 2;
+    string port = 3;
+    string token = 4;
+}
+
+message LoginReq{
+	int32 uid = 1;
+	string token= 2;
+}
+
+message LoginRsp {
+	int32 error = 1;
+	int32 uid = 2;
+	string token = 3;
+}

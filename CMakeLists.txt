@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.15)
 project(MyServerProject LANGUAGES CXX)
 
+include (cmake/utils.cmake)
+
 # 设置 C++ 标准
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_compile_options(-Wno-builtin-macro-redefined)
 
 # 启用测试支持
 enable_testing()
@@ -20,14 +24,17 @@ include_directories(/usr/include/jsoncpp)
 list(APPEND CMAKE_PREFIX_PATH "/usr/local/lib/cmake")
 
 # 查找第三方库
-find_package(Boost 1.88 REQUIRED COMPONENTS system thread filesystem)
-find_package(Threads REQUIRED)
+# find_package(Boost 1.88 REQUIRED COMPONENTS system thread filesystem)
+find_package(Boost REQUIRED COMPONENTS system filesystem)
 find_package(Protobuf REQUIRED)
 find_package(gRPC REQUIRED)
 find_package(jsoncpp REQUIRED)
+find_package(spdlog REQUIRED)
+# find_package(hiredis REQUIRED)    # hiredis没有cmake，不需要find_package
+# find_package(MySQLConnector REQUIRED) # 查找 MySQL Connector/C++
 
 # 添加子目录
 add_subdirectory(GateServer)
-
+add_subdirectory(StatusServer)
 
 # 写CMake还是ChatGpt好用

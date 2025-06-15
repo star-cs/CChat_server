@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-07 15:56:27
- * @LastEditTime: 2025-06-07 19:06:22
+ * @LastEditTime: 2025-06-10 22:13:26
  * @FilePath: /CChat_server/VerifyServer/server.js
  * @Description: 验证服务器 主程序
  */
@@ -14,6 +14,7 @@ const common_modeuls = require('./src/common')
 const config_module = require('./src/config')
 const email_module = require('./src/email')
 const message_proto = require('./src/proto')
+const redis_module = require('./src/redis')
 
 /**
  * 异步处理：1. async 声明异步函数；2. await 等待异步操作完成；
@@ -23,7 +24,26 @@ const message_proto = require('./src/proto')
 async function GetVerifyCode(call, callback) {
     console.log("email is ", call.request.email)
     try {
-        uniqueId = uuidv4();
+        let query_res = await redis_module.GetRedis(common_modeuls.code_prefix + call.request.email);
+        console.log("query_res is ", query_res)
+        
+        let uniqueId = query_res;   // 如果 email 已经申请过，直接复用。
+        if (query_res == null) {
+            uniqueId = uuidv4().replace(/\D/g, '');
+            uniqueId = uniqueId.substring(0, 4);
+
+            let res = await redis_module.SetRedisExpire(
+                common_modeuls.code_prefix + call.request.email,
+                uniqueId, 3 * 60
+            );
+            if (!res) {
+                callback(null, {
+                    email: call.request.email,
+                    error: common_modeuls.Errors.RedisErr
+                })
+                return;
+            }
+        }
         console.log("uniqueId is ", uniqueId)
         let text_str = '您的验证码为' + uniqueId + '请在三分钟之内完成注册'
         // 发件人，收件人，主题和内容

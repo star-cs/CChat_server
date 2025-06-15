@@ -3,7 +3,7 @@
 
 namespace core
 {
-    HttpConnection::HttpConnection(boost::asio::io_context& ioc) : _socket(ioc)
+    HttpConnection::HttpConnection(boost::asio::io_context &ioc) : _socket(ioc), _deadline(ioc, std::chrono::seconds(60))
     {
     }
 
@@ -16,7 +16,7 @@ namespace core
                          {
             try{
                 if (ec) {
-                    std::cout << "http read err is " << ec.what() << std::endl;
+                    std::cout << "http read err is " << ec.message() << std::endl;
                     return;
                 }
                 // 处理
@@ -31,7 +31,7 @@ namespace core
     void HttpConnection::CheckDeadline()
     {
         auto self = shared_from_this();
-        deadline_.async_wait([self](beast::error_code ec)
+        _deadline.async_wait([self](beast::error_code ec)
                              {
             if(!ec){
                 self->_socket.close(ec);
@@ -47,7 +47,7 @@ namespace core
             try{
                 // http 单次连接，发送完响应后，_socket 关闭 写段
                 self->_socket.shutdown(tcp::socket::shutdown_send, ec);
-                self->deadline_.cancel();
+                self->_deadline.cancel();
             }catch(std::exception& exp){
                 std::cout << "exception is " << exp.what() << std::endl;
             } });
@@ -79,7 +79,7 @@ namespace core
         }
         else if (_request.method() == http::verb::post)
         {
-            bool success = LogicSystem::GetInstance()->HandlePost(_request.target(), shared_from_this());
+            bool success = LogicSystem::GetInstance()->HandlePost(std::string(_request.target().data()), shared_from_this());
             if (!success)
             {
                 _response.result(http::status::not_found);
@@ -98,8 +98,8 @@ namespace core
 
     void HttpConnection::PreParseGetParam()
     {
-        auto uri = _request.target();
-        auto query_pos = uri.find("?");
+        std::string uri(_request.target());
+        std:size_t query_pos = uri.find("?");
         if (query_pos == std::string::npos)
         { // 没有 k-v 数据
             _get_url = uri;
@@ -110,13 +110,13 @@ namespace core
         std::string query_string = uri.substr(query_pos + 1);
         std::string key;
         std::string value;
-        size_t pos = 0;
+        std::size_t pos = 0;
         do
         {
             pos = query_string.find("&");
             auto pair_str = query_string.substr(0, pos);
 
-            size_t eq_pos = pair_str.find("=");
+            std::size_t eq_pos = pair_str.find("=");
             if (eq_pos != std::string::npos)
             {
                 key = UrlDecode(pair_str.substr(0, eq_pos));
