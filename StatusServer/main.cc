@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-14 15:33:20
- * @LastEditTime: 2025-06-14 19:21:46
+ * @LastEditTime: 2025-06-16 18:29:47
  * @FilePath: /CChat_server/StatusServer/main.cc
  * @Description:
  */
@@ -29,6 +29,8 @@
 void RunServer()
 {
     auto &cfg = core::ConfigMgr::GetInstance();
+
+    core::RedisMgr::GetInstance();
 
     std::string server_addr(cfg["StatusServer"]["host"] + ":" + cfg["StatusServer"]["port"]);
 

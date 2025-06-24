@@ -79,5 +79,15 @@
     "C_Cpp.default.compilerPath": "/usr/bin/gcc",
     "C_Cpp.errorSquiggles": "enabled",
     "cmake.buildDirectory": "${workspaceFolder}/build",
-    "cmake.configureOnOpen": true
+    "cmake.configureOnOpen": true,
+
+    // clang-format 扩展的配置
+    "clang-format.style" : "file",
+    "clang-format.assumeFilename": "./.clang-format",
+    "clang-format.executable": "/usr/bin/clang-format",
+    "clang-format.fallbackStyle": "Google",
+    "editor.defaultFormatter": "xaver.clang-format",
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    }
 }

@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-06 20:53:47
- * @LastEditTime: 2025-06-14 16:39:32
+ * @LastEditTime: 2025-06-16 11:25:17
  * @FilePath: /CChat_server/GateServer/src/grpc_client.h
  * @Description: 申请验证码服务器， rpc 客户端
  */
@@ -103,13 +103,15 @@ namespace core
         std::unique_ptr<RpcConnPool<VerifyService>> _pool;
     };
 
+    // gRPC Server 是 StatusServer
+    // 当前是 GateServer，只需要 GetChatServer
     class StatusGrpcClient : public Singleton<StatusGrpcClient>
     {
         friend class Singleton<StatusGrpcClient>;
 
     public:
         GetChatServerRsp GetChatServer(int uid);
-        LoginRsp Login(int uid, std::string token);
+        // LoginRsp Login(int uid, std::string token); 
 
     private:
         StatusGrpcClient();

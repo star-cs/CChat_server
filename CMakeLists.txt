@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(MyServerProject LANGUAGES CXX)
 
-include (cmake/utils.cmake)
+include (_cmake/utils.cmake)
 
 # 设置 C++ 标准
 set(CMAKE_CXX_STANDARD 17)
@@ -11,6 +11,8 @@ add_compile_options(-Wno-builtin-macro-redefined)
 
 # 启用测试支持
 enable_testing()
+# 生成编译数据库文件
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 设置全局输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
@@ -36,5 +38,6 @@ find_package(spdlog REQUIRED)
 # 添加子目录
 add_subdirectory(GateServer)
 add_subdirectory(StatusServer)
+add_subdirectory(ChatServer)
 
 # 写CMake还是ChatGpt好用

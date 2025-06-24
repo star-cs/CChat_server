@@ -71,6 +71,7 @@ target_include_directories(${SERVER_NAME}Lib PUBLIC
 add_executable(${SERVER_NAME} main.cc)
 
 force_redefine_file_macro_for_sources(${SERVER_NAME}Lib)
+force_redefine_file_macro_for_sources(${SERVER_NAME})
 
 # 链接静态库到可执行文件
 target_link_libraries(${SERVER_NAME} PRIVATE ${SERVER_NAME}Lib)

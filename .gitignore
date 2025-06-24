@@ -13,11 +13,18 @@ CMakeUserPresets.json
 
 # cmake
 build
-bin
+
+bin/servers/ChatServer/ChatServer
+bin/servers/GateServer/GateServer
+bin/servers/StatusServer/StatusServer
+bin/tests
+
 lib
+.cache
 
 # nodejs
 node_modules
 .env.*
 
 
+@PROJECT_SOURCE_DIR@

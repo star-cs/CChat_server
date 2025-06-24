@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-14 16:07:53
- * @LastEditTime: 2025-06-14 16:41:32
+ * @LastEditTime: 2025-06-21 15:51:52
  * @FilePath: /CChat_server/StatusServer/src/status_service_impl.h
  * @Description: statusService gRPC 服务端
  */
@@ -28,7 +28,7 @@ namespace core
     class ChatServer
     {
     public:
-        ChatServer() : host(""), port(""), name(""), con_count(1) {}
+        ChatServer() : host(""), port(""), name(""), con_count(0) {}
         ChatServer(const ChatServer &cs) : host(cs.host), port(cs.port), name(cs.name), con_count(cs.con_count) {}
 
         ChatServer &operator=(const ChatServer &cs)
@@ -55,7 +55,9 @@ namespace core
     {
     public:
         StatusServiceImpl();
+        // 负载均衡，返回连接数较少的 服务器 消息 ChatServer
         Status GetChatServer(ServerContext *context, const GetChatServerReq *request, GetChatServerRsp *response) override;
+        // 这个login，好像用不到了。 ChatServer那边直接查Redis
         Status Login(ServerContext *context, const LoginReq *request, LoginRsp *response) override;
 
     private:

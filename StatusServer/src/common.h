@@ -1,8 +1,8 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-06 09:55:25
- * @LastEditTime: 2025-06-12 11:39:21
- * @FilePath: /CChat_server/GateServer/src/common.h
+ * @LastEditTime: 2025-06-21 23:33:42
+ * @FilePath: /CChat_server/StatusServer/src/common.h
  * @Description: 通用 头文件 及 工具方法，参数
  */
 
@@ -38,8 +38,14 @@ namespace http = beast::http;     // from <boost/beast/http.hpp>
 namespace net = boost::asio;      // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp; // from <boost/asio/ip/tcp.hpp>
 
-
 #define CODE_PREFIX "code_"
+
+#define USERIPPREFIX  "uip_"
+#define USERTOKENPREFIX  "utoken_"
+#define IPCOUNTPREFIX  "ipcount_"
+#define USER_BASE_INFO "ubaseinfo_"
+#define LOGIN_COUNT  "logincount"
+#define LOCK_COUNT "lockcount"
 
 namespace core
 {   
@@ -87,4 +93,7 @@ namespace core
     private:
         std::function<void()> func_;
     };
+
+
+    
 }

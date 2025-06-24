@@ -1,5 +1,5 @@
 # 设置服务器名称及输出目录
-set(SERVER_NAME GateServer)
+set(SERVER_NAME ChatServer)
 set(SERVER_OUTPUT_DIR ${PROJECT_SOURCE_DIR}/bin/servers/${SERVER_NAME})
 set(TEST_OUTPUT_DIR ${PROJECT_SOURCE_DIR}/bin/tests/${SERVER_NAME})
 
@@ -82,4 +82,4 @@ set_target_properties(${SERVER_NAME} PROPERTIES
 )
 
 # 添加测试目录
-# add_subdirectory(tests)
+add_subdirectory(tests)

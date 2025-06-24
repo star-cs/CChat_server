@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-07 21:00:08
- * @LastEditTime: 2025-06-12 19:44:33
+ * @LastEditTime: 2025-06-16 16:20:06
  * @FilePath: /CChat_server/GateServer/src/asio_io_service_pool.cc
  * @Description:
  */
@@ -12,7 +12,7 @@ namespace core
 {
     AsioIOServicePool::AsioIOServicePool(std::size_t size) : _nextIOService(0)
     {
-        std::string threadNum = ConfigMgr::GetInstance()["GateServer"]["threadNum"];
+        std::string threadNum = ConfigMgr::GetInstance()["IOServicePool"]["threadNum"];;
         std::size_t ioServicePoolnum = boost::lexical_cast<std::size_t>(threadNum);
         if (ioServicePoolnum < 1 || ioServicePoolnum > 64)
         {

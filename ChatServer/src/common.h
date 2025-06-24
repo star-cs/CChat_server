@@ -1,0 +1,155 @@
+/*
+ * @Author: star-cs
+ * @Date: 2025-06-06 09:55:25
+ * @LastEditTime: 2025-06-23 16:17:15
+ * @FilePath: /CChat_server/ChatServer/src/common.h
+ * @Description: 通用 头文件 及 工具方法，参数
+ */
+
+#pragma once
+
+#include <boost/beast/http.hpp>
+#include <boost/beast.hpp>
+#include <boost/asio.hpp>
+
+#include <boost/lexical_cast.hpp> // 类型转换
+
+#include <boost/dll.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+
+#include <string>
+#include <functional>
+#include <memory>
+#include <iostream>
+#include <map>
+#include <unordered_map>
+#include <vector>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
+
+#include "logger.hpp"
+
+namespace beast = boost::beast;   // from <boost/beast.hpp>
+namespace http = beast::http;     // from <boost/beast/http.hpp>
+namespace net = boost::asio;      // from <boost/asio.hpp>
+using tcp = boost::asio::ip::tcp; // from <boost/asio/ip/tcp.hpp>
+
+#define CODE_PREFIX "code_"
+
+#define MAX_LENGTH 1024 * 2
+// 头部总长度
+#define HEAD_TOTAL_LEN 4
+// 头部id长度
+#define HEAD_ID_LEN 2
+// 头部数据长度
+#define HEAD_DATA_LEN 2
+#define MAX_RECVQUE 10000
+
+// CSession 发送队列 最大值
+#define MAX_SENDQUE 1000
+
+#define USERIPPREFIX "uip_"
+#define USERTOKENPREFIX "utoken_"
+#define IPCOUNTPREFIX "ipcount_"
+#define USER_BASE_INFO "ubaseinfo_"
+#define LOGIN_COUNT "logincount"
+#define NAME_INFO "nameinfo_"
+#define LOCK_COUNT "lockcount"
+
+namespace core
+{
+
+// char 转为16进制，10->a，
+extern unsigned char ToHex(unsigned char x);
+
+// 16进制转为十进制char
+extern unsigned char FromHex(unsigned char x);
+
+// url编码，空字符用'+'拼接，复杂字符（例如中文）'%'和两个十六进制字符拼接（高四位，低四位分别拼接）。
+extern std::string UrlEncode(const std::string &str);
+
+extern std::string UrlDecode(const std::string &str);
+
+extern bool isPureDigit(const std::string &str);
+
+enum ErrorCodes {
+    Success = 0,
+    Error_Json = 1001,     // Json解析错误
+    RPCFailed = 1002,      // RPC请求错误
+    VerifyExpired = 1003,  // 验证码过期
+    VerifyCodeErr = 1004,  // 验证码错误
+    UserExist = 1005,      // 用户已经存在
+    PasswdErr = 1006,      // 密码错误
+    EmailNotMatch = 1007,  // 邮箱不匹配
+    PasswdUpFailed = 1008, // 更新密码失败
+    PasswdInvalid = 1009,  // 登录密码失败
+    TokenInvalid = 1010,   // Token失效
+    UidInvalid = 1011,     // uid无效
+};
+
+// Defer类
+class Defer
+{
+public:
+    // 接受一个lambda表达式或者函数指针
+    Defer(std::function<void()> func) : func_(func) {}
+
+    // 析构函数中执行传入的函数
+    ~Defer() { func_(); }
+
+private:
+    std::function<void()> func_;
+};
+
+enum MSG_IDS {
+    ID_CHAT_LOGIN = 1005,               //登陆聊天服务器
+    ID_CHAT_LOGIN_RSP = 1006,           //登陆聊天服务器回包
+    ID_SEARCH_USER_REQ = 1007,          //用户搜索请求
+    ID_SEARCH_USER_RSP = 1008,          //搜索用户回包
+    ID_ADD_FRIEND_REQ = 1009,           //添加好友申请
+    ID_ADD_FRIEND_RSP = 1010,           //申请添加好友回复
+    ID_NOTIFY_ADD_FRIEND_REQ = 1011,    //通知用户添加好友申请
+    ID_AUTH_FRIEND_REQ = 1013,          //认证好友请求
+    ID_AUTH_FRIEND_RSP = 1014,          //认证好友回复
+    ID_NOTIFY_AUTH_FRIEND_REQ = 1015,   //通知用户认证好友申请
+    ID_TEXT_CHAT_MSG_REQ = 1017,        //文本聊天信息请求
+    ID_TEXT_CHAT_MSG_RSP = 1018,        //文本聊天信息回复
+    ID_NOTIFY_TEXT_CHAT_MSG_REQ = 1019, //通知用户文本聊天信息
+};
+
+struct UserInfo {
+    UserInfo()
+        : name(""), pwd(""), uid(0), email(""), nick(""), desc(""), sex(0), icon("")
+    {
+    }
+    std::string name;
+    std::string pwd;
+    int uid;
+    std::string email;
+    std::string nick;
+    std::string desc;
+    int sex;
+    std::string icon;
+};
+
+struct ApplyInfo {
+    ApplyInfo(int uid, std::string name, std::string desc, std::string icon, std::string nick,
+              int sex, int status)
+        : _uid(uid), _name(name), _desc(desc), _icon(icon), _nick(nick), _sex(sex), _status(status)
+    {
+    }
+
+    int _uid;
+    std::string _name;
+    std::string _desc;
+    std::string _icon;
+    std::string _nick;
+    int _sex;
+    int _status;
+};
+
+} // namespace core

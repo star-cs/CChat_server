@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-06 20:53:34
- * @LastEditTime: 2025-06-14 15:17:21
+ * @LastEditTime: 2025-06-16 11:25:22
  * @FilePath: /CChat_server/GateServer/src/grpc_client.cc
  * @Description:
  */
@@ -72,27 +72,4 @@ namespace core
             return response;
         }
     }
-
-    LoginRsp StatusGrpcClient::Login(int uid, std::string token)
-    {
-        ClientContext context;
-        LoginReq request;
-        LoginRsp response;
-        request.set_uid(uid);
-        request.set_token(token);
-        
-        auto stub = _pool->getConnection();
-        Status status = stub->Login(&context, request, &response);
-        Defer defer([&stub, this]{
-            _pool->returnConnection(std::move(stub));
-        });
-
-        if(status.ok()){
-            return response;
-        }else{
-            response.set_error(ErrorCodes::RPCFailed);
-            return response;
-        }
-    }
-
 }
