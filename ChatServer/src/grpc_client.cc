@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 11:22:03
- * @LastEditTime: 2025-06-24 10:15:10
+ * @LastEditTime: 2025-06-25 14:42:46
  * @FilePath: /CChat_server/ChatServer/src/grpc_client.cc
  * @Description:
  */
@@ -65,9 +65,9 @@ ChatGrpcClient::ChatGrpcClient()
         int num = boost::lexical_cast<int>(cfg["RpcConnPool"]["PeerServer"]);
         std::string host = cfg[word]["host"];
         std::string port = cfg[word]["port"];
-        _pools[word] =
-            std::make_unique<RpcConnPool<ChatService>>(num, host, port);
-        LOG_INFO("ChatGrpcClient sucess, perrserver:{}, poolsize:{}, hose:{}, port:{}", word, num, host, port);
+        _pools[word] = std::make_unique<RpcConnPool<ChatService>>(num, host, port);
+        LOG_INFO("ChatGrpcClient sucess, perrserver:{}, poolsize:{}, hose:{}, port:{}", word, num,
+                 host, port);
     }
 }
 
@@ -150,6 +150,33 @@ TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const Te
                                                  const Json::Value &rtvalue)
 {
     TextChatMsgRsp rsp;
+    rsp.set_error(ErrorCodes::Success);
+    Defer defer([&rsp, &req]() {
+        rsp.set_fromuid(req.fromuid());
+        rsp.set_touid(req.touid());
+        for (const auto &text_data : req.textmsgs()) {
+            TextChatData *new_msg = rsp.add_textmsgs();
+            new_msg->set_msgid(text_data.msgid());
+            new_msg->set_msgcontent(text_data.msgcontent());
+        }
+    });
+
+    auto find_iter = _pools.find(server_ip);
+    if (find_iter == _pools.end()) {
+        return rsp;
+    }
+
+    auto &pool = find_iter->second;
+    ClientContext context;
+    auto stub = pool->getConnection();
+    Status status = stub->NotifyTextChatMsg(&context, req, &rsp);
+    Defer defercon([&stub, this, &pool]() { pool->returnConnection(std::move(stub)); });
+
+    if (!status.ok()) {
+        rsp.set_error(ErrorCodes::RPCFailed);
+        return rsp;
+    }
+
     return rsp;
 }
 

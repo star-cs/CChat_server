@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 09:51:32
- * @LastEditTime: 2025-06-24 16:38:04
+ * @LastEditTime: 2025-06-25 13:31:08
  * @FilePath: /CChat_server/ChatServer/src/logic_system.h
  * @Description: 
  */
@@ -60,6 +60,10 @@ private:
 
     // 处理 ID_AUTH_FRIEND_REQ 同意 好友请求 的 请求
     void AuthFriendApply(std::shared_ptr<CSession> cession, const short &msg_id,
+                         const std::string &msg_data);
+
+    // 处理 ID_TEXT_CHAT_MSG_REQ 发送文本消息的 请求
+    void DealChatTextMsg(std::shared_ptr<CSession> session, const short &msg_id,
                          const std::string &msg_data);
 
 private:

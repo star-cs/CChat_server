@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 10:00:05
- * @LastEditTime: 2025-06-24 20:09:19
+ * @LastEditTime: 2025-06-25 15:52:47
  * @FilePath: /CChat_server/ChatServer/src/logic_system.cc
  * @Description:
  */
@@ -118,6 +118,12 @@ void LogicSystem::ResgisterCallBack()
         std::make_pair(MSG_IDS::ID_AUTH_FRIEND_REQ,
                        std::bind(&LogicSystem::AuthFriendApply, this, std::placeholders::_1,
                                  std::placeholders::_2, std::placeholders::_3)));
+    
+    // 发送文本消息
+    _fun_callbacks.insert(
+        std::make_pair(MSG_IDS::ID_TEXT_CHAT_MSG_REQ,
+                       std::bind(&LogicSystem::DealChatTextMsg, this, std::placeholders::_1,
+                                 std::placeholders::_2, std::placeholders::_3)));
 }
 
 bool LogicSystem::GetBaseInfo(int uid, std::shared_ptr<UserInfo> &user_info)
@@ -159,7 +165,7 @@ bool LogicSystem::GetBaseInfo(int uid, std::shared_ptr<UserInfo> &user_info)
             return false;
         }
         user_info = userinfo;
-        
+
         LOG_INFO("user login uid:{}, name:{}, pwd:{}, email:{}, nick:{}, desc:{}, sex:{}, icon:{}",
                  user_info->uid, user_info->name, user_info->pwd, user_info->email, user_info->nick,
                  user_info->desc, user_info->sex, user_info->icon);
@@ -275,7 +281,6 @@ void LogicSystem::GetUserByName(std::string name, Json::Value &rtvalue)
         auto sex = root["sex"].asInt();
         auto icon = root["icon"].asString();
 
-
         rtvalue["uid"] = uid;
         // rtvalue["pwd"] = pwd;
         rtvalue["name"] = name;
@@ -315,12 +320,12 @@ void LogicSystem::GetUserByName(std::string name, Json::Value &rtvalue)
     rtvalue["icon"] = user_info->icon;
 }
 
-bool LogicSystem::GetFriendApplyInfo(int uid, std::vector<std::shared_ptr<ApplyInfo>>& apply_list)
+bool LogicSystem::GetFriendApplyInfo(int uid, std::vector<std::shared_ptr<ApplyInfo>> &apply_list)
 {
     return MysqlMgr::GetInstance()->GetApplyList(uid, apply_list, 0, 10);
 }
 
-bool LogicSystem::GetFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>& friend_list)
+bool LogicSystem::GetFriendList(int uid, std::vector<std::shared_ptr<UserInfo>> &friend_list)
 {
     return MysqlMgr::GetInstance()->GetFriendList(uid, friend_list);
 }
@@ -635,6 +640,75 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> cession, const short
         req.set_touid(touid);
 
         ChatGrpcClient::GetInstance()->NotifyAuthFriend(from_ip_value, req);
+    }
+}
+
+void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short &msg_id,
+                                  const std::string &msg_data)
+{
+    Json::Value root;
+    Json::CharReaderBuilder readerBuilder;
+    std::string errs;
+    std::unique_ptr<Json::CharReader> reader(readerBuilder.newCharReader());
+    bool parsingSuccessful =
+        reader->parse(msg_data.c_str(), msg_data.c_str() + msg_data.size(), &root, &errs);
+    if (!parsingSuccessful) {
+        std::cerr << "JSON 解析失败: " << errs << std::endl;
+        return;
+    }
+
+    auto uid = root["fromuid"].asInt();
+    auto touid = root["touid"].asInt();
+
+    const Json::Value arrays = root["text_array"];
+
+    Json::Value rtvalue;
+    rtvalue["error"] = ErrorCodes::Success;
+    rtvalue["text_array"] = arrays;
+    rtvalue["fromuid"] = uid;
+    rtvalue["touid"] = touid;
+
+    Defer defer([this, &rtvalue, session]() {
+        std::string return_str = rtvalue.toStyledString();
+        session->Send(return_str, ID_TEXT_CHAT_MSG_RSP);
+    });
+
+    // 查询redis 查找touid对应的server ip
+    auto to_str = std::to_string(touid);
+    auto to_ip_key = USERIPPREFIX + to_str;
+    std::string to_ip_value = "";
+    bool b_ip = RedisMgr::GetInstance()->Get(to_ip_key, to_ip_value);
+    if (!b_ip) {
+        return;
+    }
+
+    auto &cfg = ConfigMgr::GetInstance();
+    auto self_name = cfg["SelfServer"]["name"];
+
+    // 二者在同一个服务器上，直接通知对方有消息
+    if (to_ip_value == self_name) {
+        auto session = UserMgr::GetInstance()->GetSession(touid);
+        if (session) {
+            // 则直接发送通知对方
+            std::string return_str = rtvalue.toStyledString();
+            session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
+        }
+    } else {
+        TextChatMsgReq text_msg_req;
+        text_msg_req.set_fromuid(uid);
+        text_msg_req.set_touid(touid);
+        for (const auto &txt_obj : arrays) {
+            auto content = txt_obj["content"].asString();
+            auto msgid = txt_obj["msgid"].asString();
+            std::cout << "content is " << content << std::endl;
+            std::cout << "msgid is " << msgid << std::endl;
+            auto *text_msg = text_msg_req.add_textmsgs();
+            text_msg->set_msgid(msgid);
+            text_msg->set_msgcontent(content);
+        }
+
+        // 发送通知
+        ChatGrpcClient::GetInstance()->NotifyTextChatMsg(to_ip_value, text_msg_req, rtvalue);
     }
 }
 

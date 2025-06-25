@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-20 21:40:08
- * @LastEditTime: 2025-06-24 22:07:04
+ * @LastEditTime: 2025-06-25 14:43:39
  * @FilePath: /CChat_server/ChatServer/src/grpc_chat_service_impl.cc
  * @Description:
  */
@@ -102,6 +102,32 @@ Status ChatServiceImpl::NotifyAuthFriend(ServerContext *context, const AuthFrien
 Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext *context,
                                           const TextChatMsgReq *request, TextChatMsgRsp *response)
 {
+    // 查找用户是否在本服务器
+    auto touid = request->touid();
+    auto session = UserMgr::GetInstance()->GetSession(touid);
+    response->set_error(ErrorCodes::Success);
+    if (session == nullptr) {
+        return Status::OK;
+    }
+
+    Json::Value rtvalue;
+    rtvalue["error"] = ErrorCodes::Success;
+    rtvalue["fromuid"] = request->fromuid();
+    rtvalue["touid"] = request->touid();
+
+    // 组装连天数据
+    Json::Value text_array;
+    for (auto &msg : request->textmsgs()) {
+        Json::Value element;
+        element["content"] = msg.msgcontent();
+        element["msgid"] = msg.msgid();
+        text_array.append(element);
+    }
+    rtvalue["text_array"] = text_array;
+
+    std::string return_str = rtvalue.toStyledString();
+
+    session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
     return Status::OK;
 }
 
