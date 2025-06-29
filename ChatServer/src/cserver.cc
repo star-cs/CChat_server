@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-15 20:44:34
- * @LastEditTime: 2025-06-29 16:44:03
+ * @LastEditTime: 2025-06-29 20:02:19
  * @FilePath: /CChat_server/ChatServer/src/cserver.cc
  * @Description:
  */
@@ -24,16 +24,12 @@ CServer::CServer(boost::asio::io_context &ioc, unsigned short &port)
     : _ioc(ioc), _port(port), _acceptor(ioc, tcp::endpoint(tcp::v4(), port)),
       _timer(ioc, std::chrono::seconds(60))
 {
-    // 注册系统 保存 CServer 的信息，方便在里面 对 _sessions 进行操作
-    core::LogicSystem::GetInstance()->setCServer(this);
-    _timer.async_wait([this](boost::system::error_code error) { on_timer(error); });
-
     StartAccept();
 }
 
 CServer::~CServer()
 {
-    std::cout << "Server destruct" << std::endl;
+    std::cout << "Server destruct listen on port : " << _port << std::endl;
 }
 
 void CServer::ClearSession(std::string session_id)
@@ -54,6 +50,11 @@ bool CServer::CheckValid(std::string sessionId)
 
 void CServer::on_timer(const boost::system::error_code &error)
 {
+    std::cout << "on_timer" << std::endl;
+    if (error) {
+        std::cout << "timer error: " << error.message() << std::endl;
+        return;
+    }
     std::vector<std::shared_ptr<CSession>> _expired_session;
     int session_count = 0;
     {
@@ -106,6 +107,16 @@ void CServer::StartAccept()
 
     _acceptor.async_accept(new_session->GetSocket(), std::bind(&CServer::HandleAccept, this,
                                                                new_session, std::placeholders::_1));
+}
+
+void CServer::StartTimer()
+{
+    auto self(shared_from_this());
+    _timer.async_wait([self](boost::system::error_code ec) { self->on_timer(ec); });
+}
+void CServer::StopTimer()
+{
+    _timer.cancel();
 }
 
 } // namespace core

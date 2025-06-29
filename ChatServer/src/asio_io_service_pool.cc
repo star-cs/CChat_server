@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-07 21:00:08
- * @LastEditTime: 2025-06-16 16:19:14
+ * @LastEditTime: 2025-06-29 21:07:07
  * @FilePath: /CChat_server/ChatServer/src/asio_io_service_pool.cc
  * @Description:
  */
@@ -34,7 +34,6 @@ AsioIOServicePool::AsioIOServicePool(std::size_t size) : _nextIOService(0)
 
 AsioIOServicePool::~AsioIOServicePool()
 {
-    Stop();
     std::cout << "AsioIOServicePool destruct" << std::endl;
 }
 
@@ -49,9 +48,13 @@ boost::asio::io_context &AsioIOServicePool::GetIOService()
 
 void AsioIOServicePool::Stop()
 {
-    // 清理 work guard
-    _works.clear();
-
+    //因为仅仅执行work.reset并不能让iocontext从run的状态中退出
+    //当iocontext已经绑定了读或写的监听事件后，还需要手动stop该服务。
+    for (auto &work : _works) {
+        //把服务先停止
+        work->get_executor().context().stop();
+        work.reset();
+    }
     // 等待所有线程完成
     for (auto &t : _threads) {
         if (t.joinable()) {

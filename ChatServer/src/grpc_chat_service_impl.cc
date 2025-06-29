@@ -21,9 +21,8 @@
 
 namespace core
 {
-ChatServiceImpl::ChatServiceImpl(std::shared_ptr<CServer> pServer)
+ChatServiceImpl::ChatServiceImpl()
 {
-    _p_server = pServer;
 }
 Status ChatServiceImpl::NotifyAddFriend(ServerContext *context, const AddFriendReq *request,
                                         AddFriendRsp *reply)
@@ -206,6 +205,10 @@ Status ChatServiceImpl::NotifyKickUser(ServerContext *context, const KickUserReq
     //清除旧的连接
     _p_server->ClearSession(session->GetSessionId());
     return Status::OK;
+}
+
+void ChatServiceImpl::RegisterServer(std::shared_ptr<CServer> pServer){
+    _p_server = pServer;
 }
 
 } // namespace core

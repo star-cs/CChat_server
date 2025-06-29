@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 10:00:05
- * @LastEditTime: 2025-06-29 17:10:11
+ * @LastEditTime: 2025-06-29 20:48:44
  * @FilePath: /CChat_server/ChatServer/src/logic_system.cc
  * @Description:
  */
@@ -31,6 +31,7 @@ LogicSystem::LogicSystem() : _b_stop(false), _p_server(nullptr)
 
 LogicSystem::~LogicSystem()
 {
+    std::cout << "~LogicSystem destruct" << std::endl;
     _b_stop = true;
     _cond.notify_one();
     _worker_thread.join();
@@ -72,6 +73,7 @@ void LogicSystem::DelMsg()
                     call_back_iter->second(msg_node->_session, msg_node->_recvNode->_msg_id,
                                            msg_node->_recvNode->_data);
                 }
+                break;
             }
 
             // 没有停服，说明队列中有数据

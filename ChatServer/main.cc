@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-15 20:37:19
- * @LastEditTime: 2025-06-29 10:26:31
+ * @LastEditTime: 2025-06-29 20:18:22
  * @FilePath: /CChat_server/ChatServer/main.cc
  * @Description:
  */
@@ -33,19 +33,22 @@ int main(int argc, char **argv)
 
     // 获取选项值
     std::string config_name = env->getOption("f", "config.ini");
+    auto &cfg = core::ConfigMgr::GetInstance(config_name);
+    auto server_name = cfg.GetSelfName();
 
     try {
-        auto &cfg = core::ConfigMgr::GetInstance(config_name);
 
         core::MysqlMgr::GetInstance();
         core::RedisMgr::GetInstance();
 
         auto pool = core::AsioIOServicePool::GetInstance();
 
-        auto server_name = cfg.GetSelfName();
-
         // 将登录个数设置为0
         core::RedisMgr::GetInstance()->InitCount(server_name);
+        core::Defer derfer([server_name]() {
+            core::RedisMgr::GetInstance()->HDel(LOGIN_COUNT, server_name);
+            core::RedisMgr::GetInstance()->Close();
+        });
 
         boost::asio::io_context io_context;
 
@@ -53,39 +56,45 @@ int main(int argc, char **argv)
         // auto port_str = cfg["SelfServer"]["port"];
         // core::CServer s(io_context, boost::lexical_cast<unsigned short>(port_str.c_str()));
         unsigned short port = boost::lexical_cast<unsigned short>(cfg.GetSelfPort());
-        std::shared_ptr<core::CServer> s = std::make_shared<core::CServer>(io_context, port);
+        std::shared_ptr<core::CServer> cserver = std::make_shared<core::CServer>(io_context, port);
+        cserver->StartTimer();
         LOG_INFO("TCP Server {} listening on {}:{}", server_name, cfg.GetSelfHost(), port);
 
         // 定义 GrpcServer
         std::string server_address(cfg["SelfServer"]["host"] + ":" + cfg["SelfServer"]["RPCPort"]);
-        core::ChatServiceImpl service(s);
+        core::ChatServiceImpl service;
+
         grpc::ServerBuilder builder;
 
         // 监听端口和添加服务
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(&service);
+        service.RegisterServer(cserver);
+
         // 构建并启动 gRPC 服务器
-        std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+        std::unique_ptr<grpc::Server> gpcserver(builder.BuildAndStart());
 
         LOG_INFO("gRPC Server {} listening on {}", server_name, server_address);
 
-        std::thread grpc_server_thread([&server]() { server->Wait(); });
+        std::thread grpc_server_thread([&gpcserver]() { gpcserver->Wait(); });
 
         core::StatusGrpcClient::GetInstance();
         core::ChatGrpcClient::GetInstance(); // 惰性加载 bug解决，先启动 server ~
 
         boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
-        signals.async_wait([&io_context, pool, &server](auto, auto) {
-            server->Shutdown();
+        signals.async_wait([&io_context, pool, &gpcserver](auto, auto) {
             io_context.stop();
-            pool->Stop();
+			pool->Stop();
+			gpcserver->Shutdown();
         });
+
+        // 注册系统 保存 CServer 的信息，方便在里面 对 _sessions 进行操作
+        core::LogicSystem::GetInstance()->setCServer(cserver);
+
         io_context.run();
-
-        core::RedisMgr::GetInstance()->HDel(LOGIN_COUNT, server_name);
-        core::RedisMgr::GetInstance()->Close();
-
         grpc_server_thread.join();
+
+        cserver->StopTimer();
     } catch (const std::exception &e) {
         LOG_ERROR("Exception {}", e.what());
     }

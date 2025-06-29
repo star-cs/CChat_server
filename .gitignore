@@ -19,7 +19,7 @@ bin/servers/GateServer/GateServer
 bin/servers/StatusServer/StatusServer
 bin/tests
 
-lib
+_lib
 .cache
 
 # nodejs

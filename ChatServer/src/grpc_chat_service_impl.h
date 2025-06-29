@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-20 21:10:30
- * @LastEditTime: 2025-06-28 22:07:28
+ * @LastEditTime: 2025-06-29 19:04:58
  * @FilePath: /CChat_server/ChatServer/src/grpc_chat_service_impl.h
  * @Description: ChatService gRPC server实现类
  */
@@ -39,7 +39,7 @@ class CServer;
 class ChatServiceImpl final : public ChatService::Service
 {
 public:
-    ChatServiceImpl(std::shared_ptr<CServer> pServer);
+    ChatServiceImpl();
     Status NotifyAddFriend(ServerContext *context, const AddFriendReq *request,
                            AddFriendRsp *reply) override;
     Status NotifyAuthFriend(ServerContext *context, const AuthFriendReq *request,
@@ -50,6 +50,8 @@ public:
 
     Status NotifyKickUser(ServerContext *context, const KickUserReq *request,
                           KickUserRsp *response) override;
+
+    void RegisterServer(std::shared_ptr<CServer> pServer);
 
 private:
     std::shared_ptr<CServer> _p_server;

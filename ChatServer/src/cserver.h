@@ -1,3 +1,10 @@
+/*
+ * @Author: star-cs
+ * @Date: 2025-06-28 11:54:15
+ * @LastEditTime: 2025-06-29 19:21:12
+ * @FilePath: /CChat_server/ChatServer/src/cserver.h
+ * @Description: 
+ */
 #pragma once
 
 #include "common.h"
@@ -13,7 +20,9 @@ public:
     ~CServer();
     void ClearSession(std::string session);
     bool CheckValid(std::string sessionId);
-    void on_timer(const boost::system::error_code& error);
+    void on_timer(const boost::system::error_code &error);
+    void StartTimer();
+    void StopTimer();
 
 private:
     void HandleAccept(std::shared_ptr<CSession> new_session,

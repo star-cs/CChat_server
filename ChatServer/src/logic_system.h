@@ -28,7 +28,7 @@ class LogicSystem : public Singleton<LogicSystem>
 
 public:
     ~LogicSystem();
-    void setCServer(CServer* pCServer){_p_server = pCServer;}
+    void setCServer(std::shared_ptr<CServer> pCServer){_p_server = pCServer;}
     void PostMsgToQue(std::shared_ptr<LogicNode> msg);
 
 private:
@@ -77,7 +77,7 @@ private:
     std::mutex _mutex;
     std::condition_variable _cond;
     bool _b_stop;
-    CServer* _p_server;
+    std::shared_ptr<CServer> _p_server;
     std::map<short, FunCallBack> _fun_callbacks;
 };
 } // namespace core
