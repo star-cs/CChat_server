@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-06 09:55:25
- * @LastEditTime: 2025-06-23 16:17:15
+ * @LastEditTime: 2025-06-28 19:46:53
  * @FilePath: /CChat_server/ChatServer/src/common.h
  * @Description: 通用 头文件 及 工具方法，参数
  */
@@ -58,7 +58,14 @@ using tcp = boost::asio::ip::tcp; // from <boost/asio/ip/tcp.hpp>
 #define USER_BASE_INFO "ubaseinfo_"
 #define LOGIN_COUNT "logincount"
 #define NAME_INFO "nameinfo_"
+#define LOCK_PREFIX "lock_"
+#define USER_SESSION_PREFIX "usession_"
 #define LOCK_COUNT "lockcount"
+
+//分布式锁的持有时间
+#define LOCK_TIME_OUT 10
+//分布式锁的重试时间
+#define ACQUIRE_TIME_OUT 5
 
 namespace core
 {
@@ -119,6 +126,7 @@ enum MSG_IDS {
     ID_TEXT_CHAT_MSG_REQ = 1017,        //文本聊天信息请求
     ID_TEXT_CHAT_MSG_RSP = 1018,        //文本聊天信息回复
     ID_NOTIFY_TEXT_CHAT_MSG_REQ = 1019, //通知用户文本聊天信息
+    ID_NOTIFY_OFF_LINE_REQ = 1020,             //通知客户端自动退出 （踢人）
 };
 
 struct UserInfo {

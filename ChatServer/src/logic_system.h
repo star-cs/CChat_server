@@ -1,12 +1,13 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 09:51:32
- * @LastEditTime: 2025-06-25 13:31:08
+ * @LastEditTime: 2025-06-29 10:26:59
  * @FilePath: /CChat_server/ChatServer/src/logic_system.h
  * @Description: 
  */
 #pragma once
 #include "common.h"
+#include "cserver.h"
 #include "csession.h"
 #include "singleton.h"
 #include "mysql_mgr.h"
@@ -27,6 +28,7 @@ class LogicSystem : public Singleton<LogicSystem>
 
 public:
     ~LogicSystem();
+    void setCServer(CServer* pCServer){_p_server = pCServer;}
     void PostMsgToQue(std::shared_ptr<LogicNode> msg);
 
 private:
@@ -72,7 +74,7 @@ private:
     std::mutex _mutex;
     std::condition_variable _cond;
     bool _b_stop;
-    //
+    CServer* _p_server;
     std::map<short, FunCallBack> _fun_callbacks;
 };
 } // namespace core

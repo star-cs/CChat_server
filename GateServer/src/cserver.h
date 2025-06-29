@@ -1,10 +1,3 @@
-/*
- * @Author: star-cs
- * @Date: 2025-06-06 09:55:25
- * @LastEditTime: 2025-06-16 20:00:27
- * @FilePath: /CChat_server/GateServer/src/cserver.h
- * @Description: 
- */
 #pragma once
 
 #include "common.h"

@@ -1,25 +1,29 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-20 21:40:08
- * @LastEditTime: 2025-06-25 14:43:39
+ * @LastEditTime: 2025-06-28 22:07:14
  * @FilePath: /CChat_server/ChatServer/src/grpc_chat_service_impl.cc
  * @Description:
  */
 #include "grpc_chat_service_impl.h"
 #include "chat_service.pb.h"
 #include "common.h"
+#include "cserver.h"
 #include "mysql_mgr.h"
 #include "user_mgr.h"
+#include <cstddef>
 #include <grpcpp/impl/codegen/status.h>
 #include <json/value.h>
 #include <json/reader.h>
 #include <json/json.h>
+#include <memory>
 #include "redis_mgr.h"
 
 namespace core
 {
-ChatServiceImpl::ChatServiceImpl()
+ChatServiceImpl::ChatServiceImpl(std::shared_ptr<CServer> pServer)
 {
+    _p_server = pServer;
 }
 Status ChatServiceImpl::NotifyAddFriend(ServerContext *context, const AddFriendReq *request,
                                         AddFriendRsp *reply)
@@ -180,6 +184,28 @@ bool ChatServiceImpl::GetBaseInfo(int uid, std::shared_ptr<UserInfo> &userinfo)
     }
 
     return true;
+}
+
+Status ChatServiceImpl::NotifyKickUser(ServerContext *context, const KickUserReq *request,
+                                       KickUserRsp *response)
+{
+    auto uid = request->uid();
+    //查找用户是否在本服务器
+    auto session = UserMgr::GetInstance()->GetSession(uid);
+    Defer defer([request, response]() {
+        response->set_error(ErrorCodes::Success);
+        response->set_uid(request->uid());
+    });
+
+    if (session == nullptr) {
+        return Status::OK;
+    }
+
+    //在内存中则直接发送通知对方
+    session->NotifyOffline(uid);
+    //清除旧的连接
+    _p_server->ClearSession(session->GetSessionId());
+    return Status::OK;
 }
 
 } // namespace core

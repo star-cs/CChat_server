@@ -11,6 +11,7 @@ public:
     CServer(boost::asio::io_context &ioc, unsigned short &port);
     ~CServer();
     void ClearSession(std::string session);
+    bool CheckValid(std::string sessionId);
 
 private:
     void HandleAccept(std::shared_ptr<CSession> new_session,

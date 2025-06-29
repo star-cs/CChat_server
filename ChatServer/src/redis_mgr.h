@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-08 15:02:42
- * @LastEditTime: 2025-06-22 11:01:02
+ * @LastEditTime: 2025-06-28 16:53:02
  * @FilePath: /CChat_server/ChatServer/src/redis_mgr.h
  * @Description: RedisPool 连接池  RedisMgr 单例管理类
  */
@@ -56,14 +56,16 @@ namespace core
             _redisConnPool->Close();
         }
 
-        // std::string acquireLock(const std::string& lockName, int lockTimeout, int acquireTimeout);
+        std::string acquireLock(const std::string& lockName, int lockTimeout, int acquireTimeout);
 
-        // bool releaseLock(const std::string& lockName, const std::string& identifier);
+        bool releaseLock(const std::string& lockName, const std::string& identifier);
 
-        // void IncreaseCount(std::string server_name);
-        // void DecreaseCount(std::string server_name);
-        // void InitCount(std::string server_name);
-        // void DelCount(std::string server_name);
+        void IncreaseCount(std::string server_name);
+        void DecreaseCount(std::string server_name);
+        void InitCount(std::string server_name);
+        void DelCount(std::string server_name);
+
+        
     private:
         RedisMgr();
 

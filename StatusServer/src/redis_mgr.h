@@ -1,8 +1,8 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-08 15:02:42
- * @LastEditTime: 2025-06-08 18:44:22
- * @FilePath: /CChat_server/GateServer/src/redis_mgr.h
+ * @LastEditTime: 2025-06-28 16:53:02
+ * @FilePath: /CChat_server/ChatServer/src/redis_mgr.h
  * @Description: RedisPool 连接池  RedisMgr 单例管理类
  */
 #include "common.h"
@@ -36,34 +36,39 @@ namespace core
     class RedisMgr : public Singleton<RedisMgr>
     {
         friend Singleton<RedisMgr>;
+
     public:
         ~RedisMgr();
-        bool Get(const std::string &key, std::string& value);
+        bool Get(const std::string &key, std::string &value);
         bool Set(const std::string &key, const std::string &value);
         bool LPush(const std::string &key, const std::string &value);
-        bool LPop(const std::string &key, std::string& value);
-        bool RPush(const std::string& key, const std::string& value);
-        bool RPop(const std::string& key, std::string& value);
-        bool HSet(const std::string &key, const std::string  &hkey, const std::string &value);
-        bool HSet(const char* key, const char* hkey, const char* hvalue, size_t hvaluelen);
+        bool LPop(const std::string &key, std::string &value);
+        bool RPush(const std::string &key, const std::string &value);
+        bool RPop(const std::string &key, std::string &value);
+        bool HSet(const std::string &key, const std::string &hkey, const std::string &value);
+        bool HSet(const char *key, const char *hkey, const char *hvalue, size_t hvaluelen);
+        bool HDel(const std::string &key, const std::string &field);
         std::string HGet(const std::string &key, const std::string &hkey);
-        bool HDel(const std::string& key, const std::string& field);
         bool Del(const std::string &key);
         bool ExistsKey(const std::string &key);
-        void Close() {
+        void Close()
+        {
             _redisConnPool->Close();
         }
-    
-        // std::string acquireLock(const std::string& lockName, int lockTimeout, int acquireTimeout);
-    
-        // bool releaseLock(const std::string& lockName, const std::string& identifier);
-    
-        // void IncreaseCount(std::string server_name);
-        // void DecreaseCount(std::string server_name);
-        // void InitCount(std::string server_name);
-        // void DelCount(std::string server_name);
+
+        std::string acquireLock(const std::string& lockName, int lockTimeout, int acquireTimeout);
+
+        bool releaseLock(const std::string& lockName, const std::string& identifier);
+
+        void IncreaseCount(std::string server_name);
+        void DecreaseCount(std::string server_name);
+        void InitCount(std::string server_name);
+        void DelCount(std::string server_name);
+
+        
     private:
         RedisMgr();
+
     private:
         std::unique_ptr<RedisConnPool> _redisConnPool;
     };

@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-06 21:13:05
- * @LastEditTime: 2025-06-22 11:11:46
+ * @LastEditTime: 2025-06-28 22:54:17
  * @FilePath: /CChat_server/ChatServer/src/configmgr.h
  * @Description: ini配置文件解析 类
  */
@@ -57,6 +57,32 @@ public:
     ConfigMgr &operator=(const ConfigMgr &src) = delete;
 
     ConfigMgr(const ConfigMgr &src) = delete;
+
+    std::string GetSelfName()
+    {
+        auto name = _config_map["SelfServer"]["name"];
+        if (name.empty()) {
+            LOG_ERROR("SelfServer.name 配置项不存在或为 null");
+        }
+        return name;
+    }
+
+    std::string GetSelfHost(){
+        auto host = _config_map["SelfServer"]["host"];
+        if (host.empty()) {
+            LOG_ERROR("SelfServer.host 配置项不存在或为 null");
+        }
+        return host;
+    }
+
+    std::string GetSelfPort(){
+        auto port = _config_map["SelfServer"]["port"];
+        if (port.empty()) {
+            LOG_ERROR("SelfServer.port 配置项不存在或为 null");
+        }
+        return port;
+    }
+
 
 private:
     ConfigMgr(const std::string &filename);

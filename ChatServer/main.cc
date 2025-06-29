@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-15 20:37:19
- * @LastEditTime: 2025-06-24 10:22:57
+ * @LastEditTime: 2025-06-29 10:26:31
  * @FilePath: /CChat_server/ChatServer/main.cc
  * @Description:
  */
@@ -14,7 +14,9 @@
 #include "src/grpc_client.h"
 #include "src/redis_mgr.h"
 #include "src/grpc_chat_service_impl.h"
+#include "src/logic_system.h"
 #include <boost/lexical_cast.hpp>
+#include <memory>
 
 int main(int argc, char **argv)
 {
@@ -40,16 +42,23 @@ int main(int argc, char **argv)
 
         auto pool = core::AsioIOServicePool::GetInstance();
 
-        core::StatusGrpcClient::GetInstance();
-
-        auto server_name = cfg["SelfServer"]["name"];
+        auto server_name = cfg.GetSelfName();
 
         // 将登录个数设置为0
-        core::RedisMgr::GetInstance()->HSet(LOGIN_COUNT, server_name, "0");
+        core::RedisMgr::GetInstance()->InitCount(server_name);
+
+        boost::asio::io_context io_context;
+
+        // C++中非const左值引用无法绑定到右值​（临时对象）
+        // auto port_str = cfg["SelfServer"]["port"];
+        // core::CServer s(io_context, boost::lexical_cast<unsigned short>(port_str.c_str()));
+        unsigned short port = boost::lexical_cast<unsigned short>(cfg.GetSelfPort());
+        std::shared_ptr<core::CServer> s = std::make_shared<core::CServer>(io_context, port);
+        LOG_INFO("TCP Server {} listening on {}:{}", server_name, cfg.GetSelfHost(), port);
 
         // 定义 GrpcServer
         std::string server_address(cfg["SelfServer"]["host"] + ":" + cfg["SelfServer"]["RPCPort"]);
-        core::ChatServiceImpl service;
+        core::ChatServiceImpl service(s);
         grpc::ServerBuilder builder;
 
         // 监听端口和添加服务
@@ -62,22 +71,15 @@ int main(int argc, char **argv)
 
         std::thread grpc_server_thread([&server]() { server->Wait(); });
 
-        core::ChatGrpcClient::GetInstance();     // 惰性加载 bug解决，先启动 server ~ 
+        core::StatusGrpcClient::GetInstance();
+        core::ChatGrpcClient::GetInstance(); // 惰性加载 bug解决，先启动 server ~
 
-        boost::asio::io_context io_context;
         boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
         signals.async_wait([&io_context, pool, &server](auto, auto) {
+            server->Shutdown();
             io_context.stop();
             pool->Stop();
-            server->Shutdown();
         });
-
-        // C++中非const左值引用无法绑定到右值​（临时对象）
-        // auto port_str = cfg["SelfServer"]["port"];
-        // core::CServer s(io_context, boost::lexical_cast<unsigned short>(port_str.c_str()));
-        unsigned short port = boost::lexical_cast<unsigned short>(cfg["SelfServer"]["port"]);
-        core::CServer s(io_context, port);
-        LOG_INFO("TCP Server {} listening on {}:{}", server_name, cfg["SelfServer"]["host"], port);
         io_context.run();
 
         core::RedisMgr::GetInstance()->HDel(LOGIN_COUNT, server_name);

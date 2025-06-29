@@ -1,13 +1,14 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 11:02:39
- * @LastEditTime: 2025-06-24 10:08:56
+ * @LastEditTime: 2025-06-28 21:42:33
  * @FilePath: /CChat_server/ChatServer/src/grpc_client.h
  * @Description:
  */
 #pragma once
 
 #include <grpcpp/grpcpp.h>
+#include "chat_service.pb.h"
 #include "common.h"
 #include "singleton.h"
 
@@ -40,6 +41,8 @@ using chat::AuthFriendRsp;
 using chat::TextChatMsgReq;
 using chat::TextChatData;
 using chat::TextChatMsgRsp;
+using chat::KickUserReq;
+using chat::KickUserRsp;
 
 template <typename ServiceType>
 class RpcConnPool
@@ -136,6 +139,8 @@ public:
     // 发消息
     TextChatMsgRsp NotifyTextChatMsg(std::string server_ip, const TextChatMsgReq &req,
                                      const Json::Value &rtvalue);
+    
+    KickUserRsp NotifyKickUser(std::string server_ip, int uid);
 
 private:
     ChatGrpcClient();

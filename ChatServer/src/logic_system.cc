@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 10:00:05
- * @LastEditTime: 2025-06-25 15:52:47
+ * @LastEditTime: 2025-06-28 21:51:00
  * @FilePath: /CChat_server/ChatServer/src/logic_system.cc
  * @Description:
  */
@@ -23,7 +23,7 @@
 
 namespace core
 {
-LogicSystem::LogicSystem() : _b_stop(false)
+LogicSystem::LogicSystem() : _b_stop(false), _p_server(nullptr)
 {
     ResgisterCallBack();
     _worker_thread = std::thread(&LogicSystem::DelMsg, this);
@@ -118,7 +118,7 @@ void LogicSystem::ResgisterCallBack()
         std::make_pair(MSG_IDS::ID_AUTH_FRIEND_REQ,
                        std::bind(&LogicSystem::AuthFriendApply, this, std::placeholders::_1,
                                  std::placeholders::_2, std::placeholders::_3)));
-    
+
     // 发送文本消息
     _fun_callbacks.insert(
         std::make_pair(MSG_IDS::ID_TEXT_CHAT_MSG_REQ,
@@ -371,7 +371,6 @@ void LogicSystem::LoginHandler(std::shared_ptr<CSession> csession, const short &
         return;
     }
 
-    // 此时，token认证成功
     // 查询 用户的基本信息
     auto user_info = std::make_shared<UserInfo>();
     bool b_base = GetBaseInfo(uid, user_info);
@@ -422,25 +421,56 @@ void LogicSystem::LoginHandler(std::shared_ptr<CSession> csession, const short &
         }
     }
 
-    // 自增 当前服务器 已连接 客户端数量。CSession
-    auto server_name = ConfigMgr::GetInstance()["SelfServer"]["name"];
-    int cur_count = 0;
-    std::string count = RedisMgr::GetInstance()->HGet(LOGIN_COUNT, server_name);
-    if (!count.empty()) {
-        cur_count = std::stoi(count);
+    auto self_name = ConfigMgr::GetInstance().GetSelfName();
+    {
+        // 此时，token认证成功
+        // 此处，添加分布式锁，让该用户独占登录
+        auto lock_key = LOCK_PREFIX + uid_str;
+        auto identifier =
+            RedisMgr::GetInstance()->acquireLock(lock_key, LOCK_TIME_OUT, ACQUIRE_TIME_OUT);
+        //利用defer解锁
+        Defer defer2([this, identifier, lock_key]() {
+            RedisMgr::GetInstance()->releaseLock(lock_key, identifier);
+        });
+
+        //此处判断该用户是否在别处或者本服务器登录
+        std::string ipvalue = "";
+        std::string ipkey = USERIPPREFIX + uid_str;
+        bool b_ip = RedisMgr::GetInstance()->Get(ipkey, ipvalue);
+        if (b_ip) {
+            auto &cfg = ConfigMgr::GetInstance();
+            if (self_name == ipvalue) {
+                // 单服务器踢人
+                auto old_session = UserMgr::GetInstance()->GetSession(uid);
+
+                // 此次应该发送给客户端踢人消息，让客户端自己退出
+                if (old_session) {
+                    old_session->NotifyOffline(uid);
+                    // 清除旧的连接
+                    _p_server->ClearSession(old_session->GetSessionId());
+                }
+            } else {
+                // 如果不是本服务器，则通知grpc通知其他服务器踢掉
+                ChatGrpcClient::GetInstance()->NotifyKickUser(ipvalue, uid);
+            }
+        }
+        // 没有登录过 ~
+
+        RedisMgr::GetInstance()->IncreaseCount(self_name);
+
+        // 当前CSession绑定 客户端uid
+        csession->SetUserId(uid);
+
+        // Redis里记录，用户登录所在的ChatServer
+        RedisMgr::GetInstance()->Set(ipkey, self_name);
+
+        std::string  uid_session_key = USER_SESSION_PREFIX + uid_str;
+        // uid 和 session uid 也保存到 Redis，比如 下线的时候，查找 Redis 判断是否 匹配（匹配就清除，不匹配说明session uid被新登录重写了）
+        RedisMgr::GetInstance()->Set(uid_session_key, csession->GetSessionId());
+
+        // uid和session绑定管理，方便后续的踢人操作
+        UserMgr::GetInstance()->SetUserSession(uid, csession);
     }
-
-    RedisMgr::GetInstance()->HSet(LOGIN_COUNT, server_name, std::to_string(cur_count + 1));
-
-    // 当前CSession绑定 客户端uid
-    csession->SetUserId(uid);
-
-    // Redis里记录，用户登录所在的ChatServer
-    std::string ipkey = USERIPPREFIX + uid_str;
-    RedisMgr::GetInstance()->Set(ipkey, server_name);
-
-    // uid和session绑定管理，方便后续的踢人操作
-    UserMgr::GetInstance()->SetUserSession(uid, csession);
 
     resp_json["error"] = ErrorCodes::Success;
 }
@@ -515,7 +545,7 @@ void LogicSystem::AddFriendApply(std::shared_ptr<CSession> cession, const short 
     bool b_info = GetBaseInfo(uid, apply_info);
 
     auto &cfg = ConfigMgr::GetInstance();
-    auto selfServerName = cfg["SelfServer"]["name"];
+    auto selfServerName = cfg.GetSelfName();
     LOG_INFO("targetServer:{}, selfServerName:{}", targetServer, selfServerName);
     //3. 同一服务器，找对方所在的CSession，通知对方的客户端
     if (targetServer == selfServerName) {
@@ -610,7 +640,7 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> cession, const short
         return;
     }
 
-    if (from_ip_value == ConfigMgr::GetInstance()["SelfServer"]["name"]) {
+    if (from_ip_value == ConfigMgr::GetInstance().GetSelfName()) {
         // 在同一个ChatServer
         auto session = UserMgr::GetInstance()->GetSession(fromuid);
         if (session == nullptr) {
@@ -683,7 +713,7 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
     }
 
     auto &cfg = ConfigMgr::GetInstance();
-    auto self_name = cfg["SelfServer"]["name"];
+    auto self_name = cfg.GetSelfName();
 
     // 二者在同一个服务器上，直接通知对方有消息
     if (to_ip_value == self_name) {

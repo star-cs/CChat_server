@@ -11,7 +11,7 @@ const path = require('path')                        // nodejs核心，处理文�
 const grpc = require('@grpc/grpc-js')               // gRPC
 const protoLoader = require('@grpc/proto-loader')   // proto文件加载器
 
-const PROTO_PATH = path.join(__dirname, '../proto/message.proto')
+const PROTO_PATH = path.join(__dirname, '../../_proto/verify_service.proto')
 
 // 同步加载 proto 文件      异步版本load()
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
@@ -28,7 +28,7 @@ const protoDescriptor = grpc.loadPackageDefinition(packageDefinition)
 
 // 获取特定服务
 // message 对于 proto 文件中的 package 字段
-const message_proto = protoDescriptor.message
+const message_proto = protoDescriptor.verify
 
 // 导出模块
 // 其他文件可通过 require() 导入该 gRPC 定义

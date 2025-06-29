@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 11:22:03
- * @LastEditTime: 2025-06-25 14:42:46
+ * @LastEditTime: 2025-06-28 21:54:08
  * @FilePath: /CChat_server/ChatServer/src/grpc_client.cc
  * @Description:
  */
@@ -180,4 +180,38 @@ TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const Te
     return rsp;
 }
 
+KickUserRsp ChatGrpcClient::NotifyKickUser(std::string server_ip, int uid)
+{
+    KickUserRsp rsp;
+    rsp.set_error(ErrorCodes::Success);
+
+    KickUserReq req;
+    req.set_uid(uid);
+    Defer defer([&rsp, &req]() {
+        rsp.set_error(ErrorCodes::Success);
+        rsp.set_uid(req.uid());
+    });
+
+    auto find_iter = _pools.find(server_ip);
+    if(find_iter == _pools.end()){
+        return rsp;
+    }
+
+    auto& pool = find_iter->second;
+    ClientContext context;
+
+    auto stub = pool->getConnection();
+    Defer defer2([&stub, this, &pool](){
+        pool->returnConnection(std::move(stub));       
+    });
+
+    Status status = stub->NotifyKickUser(&context, req, &rsp);
+
+    if (!status.ok()) {
+        rsp.set_error(ErrorCodes::RPCFailed);
+        return rsp;
+    }
+    
+    return rsp;
+}
 } // namespace core
