@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-15 21:16:33
- * @LastEditTime: 2025-06-29 11:07:16
+ * @LastEditTime: 2025-06-29 17:33:10
  * @FilePath: /CChat_server/ChatServer/src/csession.cc
  * @Description:
  */
@@ -14,6 +14,7 @@
 #include "user_mgr.h"
 #include "json/value.h"
 #include <boost/uuid.hpp>
+#include <ctime>
 #include <memory>
 #include <mutex>
 
@@ -30,6 +31,9 @@ CSession::CSession(boost::asio::io_context &io_context, CServer *server)
 CSession::~CSession()
 {
     std::cout << "~CSession destruct" << std::endl;
+
+    // 定时器每60秒会更新一遍 登录次数，这里就不额外加锁修改了。
+    // RedisMgr::GetInstance()->DecreaseCount(ConfigMgr::GetInstance().GetSelfName());
 }
 
 void CSession::Start()
@@ -95,7 +99,8 @@ void CSession::AsyncReadHead(int length)
                     return;
                 }
 
-                //判断连接无效
+                // 备注：当 跨服踢人的时候，当前服务器还在 tcp 通知客户端关闭连接的过程中，对端socket还没关闭，ec还没触发的时候。
+                // 此时 需 检查 session 是否有效，按照上面这种情况，session无效，不接受数据 ~
                 if (!_server->CheckValid(_session_id)) {
                     Close();
                     return;
@@ -111,7 +116,7 @@ void CSession::AsyncReadHead(int length)
                 msg_id = boost::asio::detail::socket_ops::network_to_host_short(msg_id);
 
                 short msg_len = 0;
-                memcpy(&msg_len, _recv_head_node->_data + HEAD_ID_LEN, HEAD_TOTAL_LEN);
+                memcpy(&msg_len, _recv_head_node->_data + HEAD_ID_LEN, HEAD_DATA_LEN);
                 msg_len = boost::asio::detail::socket_ops::network_to_host_short(msg_len);
 
                 if (msg_len > MAX_LENGTH) {
@@ -122,6 +127,8 @@ void CSession::AsyncReadHead(int length)
 
                 _recv_msg_node.reset(new RecvNode(msg_len, msg_id));
                 AsyncReadBody(msg_len);
+                // 更新 心跳 时间戳
+                UpdateHeartbeat();
             } catch (const std::exception &e) {
                 LOG_ERROR("Exception code is {}", e.what());
             }
@@ -152,6 +159,8 @@ void CSession::AsyncReadBody(int total_len)
                 }
 
                 //判断连接无效
+                // 备注：当 跨服踢人的时候，当前服务器还在 tcp 通知客户端关闭连接的过程中，对端socket还没关闭，ec还没触发的时候。
+                // 此时 需 检查 session 是否有效，按照上面这种情况，session无效，不接受数据 ~
                 if (!_server->CheckValid(_session_id)) {
                     Close();
                     return;
@@ -227,9 +236,7 @@ void CSession::DealExceptionSession()
 
     if (redis_session_id != _session_id) {
         //说明有客户在其他服务器异地登录了
-
-        RedisMgr::GetInstance()->DecreaseCount(ConfigMgr::GetInstance().GetSelfName());
-
+        //下面的Reids都是新的数据，不需要删除
         return;
     }
 
@@ -246,6 +253,17 @@ void CSession::NotifyOffline(int uid)
     rsp["uid"] = uid;
 
     Send(rsp.toStyledString(), ID_NOTIFY_OFF_LINE_REQ);
+}
+
+bool CSession::IsHeartbeatExpired(time_t now)
+{
+    double diff_sec = std::difftime(now, _last_heartbeat);
+    if (diff_sec > HEARTBEAT_TIMEOUT) {
+        LOG_DEBUG("heartbeat expired, session id is  {}", _session_id);
+        return true;
+    }
+
+    return false;
 }
 
 } // namespace core

@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 10:00:05
- * @LastEditTime: 2025-06-28 21:51:00
+ * @LastEditTime: 2025-06-29 17:10:11
  * @FilePath: /CChat_server/ChatServer/src/logic_system.cc
  * @Description:
  */
@@ -123,6 +123,12 @@ void LogicSystem::ResgisterCallBack()
     _fun_callbacks.insert(
         std::make_pair(MSG_IDS::ID_TEXT_CHAT_MSG_REQ,
                        std::bind(&LogicSystem::DealChatTextMsg, this, std::placeholders::_1,
+                                 std::placeholders::_2, std::placeholders::_3)));
+
+    // 处理 客户端发来的 心跳包
+    _fun_callbacks.insert(
+        std::make_pair(MSG_IDS::ID_HEART_BEAT_REQ,
+                       std::bind(&LogicSystem::HeartBeatHandler, this, std::placeholders::_1,
                                  std::placeholders::_2, std::placeholders::_3)));
 }
 
@@ -464,7 +470,7 @@ void LogicSystem::LoginHandler(std::shared_ptr<CSession> csession, const short &
         // Redis里记录，用户登录所在的ChatServer
         RedisMgr::GetInstance()->Set(ipkey, self_name);
 
-        std::string  uid_session_key = USER_SESSION_PREFIX + uid_str;
+        std::string uid_session_key = USER_SESSION_PREFIX + uid_str;
         // uid 和 session uid 也保存到 Redis，比如 下线的时候，查找 Redis 判断是否 匹配（匹配就清除，不匹配说明session uid被新登录重写了）
         RedisMgr::GetInstance()->Set(uid_session_key, csession->GetSessionId());
 
@@ -740,6 +746,26 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
         // 发送通知
         ChatGrpcClient::GetInstance()->NotifyTextChatMsg(to_ip_value, text_msg_req, rtvalue);
     }
+}
+
+void LogicSystem::HeartBeatHandler(std::shared_ptr<CSession> session, const short &msg_id,
+                                   const std::string &msg_data)
+{
+    Json::Value root;
+    Json::CharReaderBuilder readerBuilder;
+    std::string errs;
+    std::unique_ptr<Json::CharReader> reader(readerBuilder.newCharReader());
+    bool parsingSuccessful =
+        reader->parse(msg_data.c_str(), msg_data.c_str() + msg_data.size(), &root, &errs);
+    if (!parsingSuccessful) {
+        std::cerr << "JSON 解析失败: " << errs << std::endl;
+        return;
+    }
+    auto uid = root["fromuid"].asInt();
+    LOG_DEBUG("receive heart beat msg, uid is {}", uid);
+    Json::Value rtvalue;
+    rtvalue["error"] = ErrorCodes::Success;
+    session->Send(rtvalue.toStyledString(), ID_HEART_BEAT_RSP);
 }
 
 } // namespace core

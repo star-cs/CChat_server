@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-06 09:55:25
- * @LastEditTime: 2025-06-28 19:46:53
+ * @LastEditTime: 2025-06-29 17:04:19
  * @FilePath: /CChat_server/ChatServer/src/common.h
  * @Description: 通用 头文件 及 工具方法，参数
  */
@@ -67,6 +67,9 @@ using tcp = boost::asio::ip::tcp; // from <boost/asio/ip/tcp.hpp>
 //分布式锁的重试时间
 #define ACQUIRE_TIME_OUT 5
 
+// 心跳机制 超时时间 单位秒
+#define HEARTBEAT_TIMEOUT 20
+
 namespace core
 {
 
@@ -96,6 +99,7 @@ enum ErrorCodes {
     PasswdInvalid = 1009,  // 登录密码失败
     TokenInvalid = 1010,   // Token失效
     UidInvalid = 1011,     // uid无效
+
 };
 
 // Defer类
@@ -126,14 +130,14 @@ enum MSG_IDS {
     ID_TEXT_CHAT_MSG_REQ = 1017,        //文本聊天信息请求
     ID_TEXT_CHAT_MSG_RSP = 1018,        //文本聊天信息回复
     ID_NOTIFY_TEXT_CHAT_MSG_REQ = 1019, //通知用户文本聊天信息
-    ID_NOTIFY_OFF_LINE_REQ = 1020,             //通知客户端自动退出 （踢人）
+    ID_NOTIFY_OFF_LINE_REQ = 1020,      //通知客户端自动退出 （踢人）
+
+    ID_HEART_BEAT_REQ = 1012, // 心跳请求
+    ID_HEART_BEAT_RSP = 1012, // 心跳回包
 };
 
 struct UserInfo {
-    UserInfo()
-        : name(""), pwd(""), uid(0), email(""), nick(""), desc(""), sex(0), icon("")
-    {
-    }
+    UserInfo() : name(""), pwd(""), uid(0), email(""), nick(""), desc(""), sex(0), icon("") {}
     std::string name;
     std::string pwd;
     int uid;

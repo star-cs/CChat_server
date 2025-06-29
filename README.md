@@ -1,7 +1,7 @@
 <!--
  * @Author: star-cs
  * @Date: 2025-06-08 19:05:08
- * @LastEditTime: 2025-06-28 21:40:27
+ * @LastEditTime: 2025-06-29 17:27:46
  * @FilePath: /CChat_server/README.md
  * @Description: 
 -->
@@ -111,6 +111,7 @@ class UserMgr{
 在发送和接收的时候都可能检测到对方离线而报错，所以在AsyncReadBody和AsyncReadHead以及AsyncWrite等错误处理的时候记得加上连接清理操作。（主动移除CSession）
 
 ### 跨服务器
+跨服踢人，和单服务器踢人本质差不多，只是增加一个 gRPC 的通知过程~
 
 ```mermaid
 sequenceDiagram
@@ -124,5 +125,64 @@ sequenceDiagram
 
     C2->>S2: LoginReq
     S2-->>S1: gRPC NotifyKickUser
-    S1-->>C1: ID_NOTIFY_OFF_LINE_REQ
+    S1-->>C1: ID_NOTIFY_OFF_LINE_REQ，删除Session关联
+
+    C1->>S1: socket关闭前的请求~
+    S1-->>S1: 检查Session，不处理
+
+    C1-->>S1: socket.close() 客户端socket关闭
 ```
+
+
+## 心跳机制
+
+1. 每个CSession保存着最近的一次通信时间戳  
+2. CServer启动一个定时器，每60秒，检查所有的CSession时间戳是否超过规定心跳时间
+
+> 所以存在 CServer 查看 CSession 里的参数的操作。这两个分别是跑在不同的 io_context。需要线程锁；  
+> 同时 需要分布式锁，对 LOGIN_COUNT 进行更新。
+
+### 避免死锁
+如果是两个线程锁，避免死锁的最简单方式就是同时加锁，或者顺序一致性加锁  
+在 C++17 里，`std::scoped_lock`（也有人称它为“scope lock”）提供了对多个互斥量无死锁地一次性加锁的能力。它的核心在于内部调用了函数模板 std::lock(m1, m2, …)，该函数会：  
+1. 尝试按某种顺序非阻塞地抓取所有 mutex：
+    - std::lock 会循环地对每一个 mutex 做 try_lock()，
+    - 如果有任何一个 try_lock() 失败，就立刻释放前面已经成功抓到的所有 mutex，退避（backoff），然后重试。
+2. 保证最终所有 mutex 要么全部抓到了，要么都没抓到：  
+    - 这样就避免了“线程 A 拿了 m1 等待 m2，而线程 B 拿了 m2 等待 m1”这种经典死锁情形。  
+
+只要你的所有代码都用同一个调用 std::scoped_lock(m1, m2, …) 的方式去加这几把锁，就不会出现交叉锁导致的死锁。
+
+
+### 分布式锁 ↔ 线程锁 互相嵌套死锁问题
+1. 统一锁的获取顺序
+    - 始终按同一个顺序去申请锁。
+    - 比如：不论是业务 A（先分布式锁后线程锁）还是心跳（先线程锁后分布式锁），都改成 “先拿分布式锁 → 再拿线程锁” 或者 “先拿线程锁 → 再拿分布式锁” 之一即可。
+    - 只要保证两个场景里锁的申请顺序一致，就不会互相等待导致死锁。
+
+2. 使用带超时的尝试锁（tryLock）+ 重试／回退策略
+    - 对于线程锁（例如 ReentrantLock）和分布式锁（例如 Redisson 的 tryLock(long waitTime, long leaseTime, TimeUnit unit)），都用 tryLock 而非阻塞式 lock()。
+    - 如果某把锁在指定时间内拿不到，就释放已持有的那把锁，稍微退避（sleep 随机短时长）后重试。
+    - 这样可以在检测到可能的死锁倾向时主动放弃，避免无限等待。
+
+3. 合并锁或升级锁策略
+    - 如果分布式节点上并发线程只是共享同一把“逻辑锁”，可以考虑把本地线程锁和分布式锁做一次封装：
+    ```cpp
+    class CombinedLock {
+        RLock distLock;           
+        std::mutex mtx;  
+        public void lock() {
+            distLock.lock();
+            mtx.lock();
+        }
+        public void unlock() {
+            mtx.unlock();
+            distLock.unlock();
+        }
+    }
+    ```
+    > 伪代码里必须是 先上锁的后解锁 ~   
+    - 这样业务层只用 combinedLock.lock()，根本不用关心哪把先后，底层永远是固定顺序。
+### 优化连接数统计
+当前每次 ChatServer 的CServer定时器会检测 心跳并更新Redis连接次数。
+所以在 StatusServer 获取 ChatServer的时候，可以不用分布式锁。

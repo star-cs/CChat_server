@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "csession.h"
+#include <boost/asio/steady_timer.hpp>
 
 namespace core
 {
@@ -12,6 +13,7 @@ public:
     ~CServer();
     void ClearSession(std::string session);
     bool CheckValid(std::string sessionId);
+    void on_timer(const boost::system::error_code& error);
 
 private:
     void HandleAccept(std::shared_ptr<CSession> new_session,
@@ -24,5 +26,6 @@ private:
     tcp::acceptor _acceptor;
     std::map<std::string, std::shared_ptr<CSession>> _sessions;
     std::mutex _mutex;
+    boost::asio::steady_timer _timer;
 };
 } // namespace core

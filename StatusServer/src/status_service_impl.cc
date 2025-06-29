@@ -94,14 +94,7 @@ void StatusServiceImpl::insertToken(int uid, std::string token)
 ChatServer StatusServiceImpl::getChatServer()
 {
     std::lock_guard<std::mutex> lock(_server_mtx);
-
-    auto lock_key = LOCK_COUNT;
-    auto identifier =
-        RedisMgr::GetInstance()->acquireLock(lock_key, LOCK_TIME_OUT, ACQUIRE_TIME_OUT);
-    //利用defer解锁
-    Defer defer2([this, identifier, lock_key]() {
-        RedisMgr::GetInstance()->releaseLock(lock_key, identifier);
-    });
+    // 每个ChatServer心跳每隔60s会更新 连接次数 ，所以这里就不用分布式锁了。
 
     ChatServer minServer;
     int minCount = INT_MAX;

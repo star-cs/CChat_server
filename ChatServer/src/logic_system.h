@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 09:51:32
- * @LastEditTime: 2025-06-29 10:26:59
+ * @LastEditTime: 2025-06-29 17:19:58
  * @FilePath: /CChat_server/ChatServer/src/logic_system.h
  * @Description: 
  */
@@ -67,6 +67,9 @@ private:
     // 处理 ID_TEXT_CHAT_MSG_REQ 发送文本消息的 请求
     void DealChatTextMsg(std::shared_ptr<CSession> session, const short &msg_id,
                          const std::string &msg_data);
+
+    // 处理客户端发来的心跳包
+    void HeartBeatHandler(std::shared_ptr<CSession> session, const short& msg_id, const std::string& msg_data);
 
 private:
     std::thread _worker_thread;
