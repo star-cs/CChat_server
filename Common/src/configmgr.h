@@ -1,10 +1,3 @@
-/*
- * @Author: star-cs
- * @Date: 2025-06-06 21:13:05
- * @LastEditTime: 2025-06-28 22:54:17
- * @FilePath: /CChat_server/ChatServer/src/configmgr.h
- * @Description: ini配置文件解析 类
- */
 #pragma once
 #include "common.h"
 

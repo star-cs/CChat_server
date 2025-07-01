@@ -23,6 +23,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/_lib)
 # 引入系统头文件目录 (jsoncpp)
 include_directories(/usr/include/jsoncpp)
 
+include_directories(./Common/src)
+
 # 如果 gRPC 安装在 /usr/local/lib/cmake，加入 CMake 查找路径
 list(APPEND CMAKE_PREFIX_PATH "/usr/local/lib/cmake")
 
@@ -74,6 +76,8 @@ protobuf_generate(
     PLUGIN "protoc-gen-grpc=${grpc_cpp_plugin_location}"
 )
 
+
+add_subdirectory(Common)
 
 # 添加子目录
 add_subdirectory(GateServer)

@@ -17,7 +17,7 @@
 
 namespace coro::config
 {
-    constexpr char kLogFileName[] = "/logs/ChatServer.log";
+    constexpr char kLogFileName[] = "/logs/logger.log";
     constexpr int kFlushDura = 3; // 刷新间隔，单位：秒
 }
 

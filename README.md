@@ -1,7 +1,7 @@
 <!--
  * @Author: star-cs
  * @Date: 2025-06-08 19:05:08
- * @LastEditTime: 2025-06-29 17:27:46
+ * @LastEditTime: 2025-06-30 16:58:10
  * @FilePath: /CChat_server/README.md
  * @Description: 
 -->
@@ -155,7 +155,7 @@ sequenceDiagram
 
 
 ### 分布式锁 ↔ 线程锁 互相嵌套死锁问题
-1. 统一锁的获取顺序
+1. 统一锁的获取顺序（分层锁）
     - 始终按同一个顺序去申请锁。
     - 比如：不论是业务 A（先分布式锁后线程锁）还是心跳（先线程锁后分布式锁），都改成 “先拿分布式锁 → 再拿线程锁” 或者 “先拿线程锁 → 再拿分布式锁” 之一即可。
     - 只要保证两个场景里锁的申请顺序一致，就不会互相等待导致死锁。
@@ -186,3 +186,51 @@ sequenceDiagram
 ### 优化连接数统计
 当前每次 ChatServer 的CServer定时器会检测 心跳并更新Redis连接次数。
 所以在 StatusServer 获取 ChatServer的时候，可以不用分布式锁。
+
+
+## 锁的精度 / 连接池重连
+
+### 锁的精度
+- 粗粒度锁：保护大块数据或长时间持有 → 安全但并发性差
+- 细粒度锁：保护最小必要数据/短时间持有 → 并发性好但易出错
+
+1. 分解数据 + 独立锁。对每个临界区设置多个锁（分层锁）设置锁的顺序 ~ 
+
+2. 减少临界区返回。`快速复制需要处理的数据，耗时操作在锁外执行 [常用]`
+
+3. 使用读写锁（shared_mutex）
+    ```cpp
+    #include <shared_mutex>
+    class ThreadSafeConfig {
+        std::map<std::string, int> config;
+        mutable std::shared_mutex rwMutex; // C++17
+
+    public:
+        int get(const std::string& key) const {
+            // 读锁，共享锁（多读并行）
+            std::shared_lock<std::shared_mutex> lk(rwMutex);
+            return config.at(key);
+        }
+
+        void set(const std::string& key, int value) {
+            // 写锁，独占锁（写互斥）
+            std::unique_lock<std::shared_mutex> lk(rwMutex);
+            config[key] = value;
+        }
+    };
+    ```
+4. 分片锁策略
+    每个分片有自己的锁，而非整个数据结构公用一把锁~
+
+5. 组合锁时避免死锁
+    ```cpp
+    // 同时获取多个锁（保证顺序）
+    void transfer(Account& from, Account& to, double amt) {
+        std::lock(from.mtx, to.mtx); // 同时锁定（避免死锁）
+        std::lock_guard lk1(from.mtx, std::adopt_lock); // RAII接管
+        std::lock_guard lk2(to.mtx, std::adopt_lock);
+
+        from.balance -= amt;
+        to.balance += amt;
+    }
+    ```

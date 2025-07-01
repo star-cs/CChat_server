@@ -1,10 +1,3 @@
-/*
- * @Author: star-cs
- * @Date: 2025-06-06 22:04:53
- * @LastEditTime: 2025-06-22 15:43:34
- * @FilePath: /CChat_server/ChatServer/src/common.cc
- * @Description:
- */
 #include "common.h"
 
 namespace core

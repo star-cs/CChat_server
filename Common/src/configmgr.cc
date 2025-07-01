@@ -1,10 +1,3 @@
-/*
- * @Author: star-cs
- * @Date: 2025-06-06 21:20:27
- * @LastEditTime: 2025-06-22 17:00:23
- * @FilePath: /CChat_server/ChatServer/src/configmgr.cc
- * @Description: 
- */
 #include "configmgr.h"
 
 namespace core

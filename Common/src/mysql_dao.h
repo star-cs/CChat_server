@@ -1,8 +1,8 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-11 11:22:37
- * @LastEditTime: 2025-06-24 14:47:44
- * @FilePath: /CChat_server/ChatServer/src/mysql_dao.h
+ * @LastEditTime: 2025-06-30 19:14:33
+ * @FilePath: /CChat_server/Common/src/mysql_dao.h
  * @Description: 数据 DAO 层
  * 
  * sql::Statement           普通的 SQL 语句执行接口
@@ -40,6 +40,7 @@ public:
          * 连接 保活
          */
     void checkConnection();
+    bool reconnect(long long timestamp);
 
     std::unique_ptr<SqlConnection> getConnection();
 
@@ -71,13 +72,13 @@ public:
 
     // GateServer里的 数据库操作
     // // 存储过程
-    // int RegUser(const std::string &name, const std::string &email, const std::string &pwd);
+    int RegUser(const std::string &name, const std::string &email, const std::string &pwd);
 
     // // 分离出每一步查询操作
-    // int RegUserTransaction(const std::string& name, const std::string& email, const std::string& pwd, const std::string& icon);
-    // bool CheckEmail(const std::string& name, const std::string & email);
-    // bool UpdatePwd(const std::string& email, const std::string& newpwd);
-    // bool CheckPwd(const std::string& email, const std::string& pwd, UserInfo& userInfo);
+    int RegUserTransaction(const std::string& name, const std::string& email, const std::string& pwd, const std::string& icon);
+    bool CheckEmail(const std::string& name, const std::string & email);
+    bool UpdatePwd(const std::string& email, const std::string& newpwd);
+    bool CheckPwd(const std::string& email, const std::string& pwd, UserInfo& userInfo);
 
     std::shared_ptr<UserInfo> GetUser(int uid);
     std::shared_ptr<UserInfo> GetUser(const std::string &name);
@@ -86,8 +87,8 @@ public:
     bool AddFriend(int fromuid, int touid);
     // 获取 touid 接收到的所有 好友申请
     bool GetApplyList(int touid, std::vector<std::shared_ptr<ApplyInfo>> &applyList, int begin,
-        int limit = 10);
-        
+                      int limit = 10);
+
     // 获取 self_id 所有的 好友信息
     bool GetFriendList(int self_id, std::vector<std::shared_ptr<UserInfo>> &user_info_list);
 

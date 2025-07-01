@@ -2,12 +2,17 @@
 #include "configmgr.h"
 #include "dist_lock.h"
 #include "logger.hpp"
+#include <cmath>
+#include <cstddef>
+#include <hiredis/hiredis.h>
+#include <hiredis/read.h>
+#include <mutex>
 #include <string>
 namespace core
 {
 RedisConnPool::RedisConnPool(std::size_t pool_size, const char *host, unsigned short port,
                              const char *passwd)
-    : _pool_size(pool_size), _host(host), _port(port), _b_stop(false)
+    : _b_stop(false), _pool_size(pool_size), _host(host), _port(port), _pwd(passwd), _fail_count(0)
 {
     for (std::size_t i = 0; i < _pool_size; ++i) {
         redisContext *c = redisConnect(_host, _port);
@@ -19,8 +24,8 @@ RedisConnPool::RedisConnPool(std::size_t pool_size, const char *host, unsigned s
         }
 
         // 非空密码才进行认证
-        if (passwd && strlen(passwd) > 0) {
-            redisReply *r = (redisReply *)redisCommand(c, "AUTH %s", passwd);
+        if (_pwd && strlen(_pwd) > 0) {
+            redisReply *r = (redisReply *)redisCommand(c, "AUTH %s", _pwd);
             if (!r || r->type == REDIS_REPLY_ERROR) {
                 printf("Redis认证失败！\n");
                 redisFree(c);
@@ -32,7 +37,113 @@ RedisConnPool::RedisConnPool(std::size_t pool_size, const char *host, unsigned s
         }
         _conns.push(c);
     }
+    _check_thread = std::thread([this]() {
+        int count = 0;
+        while (!_b_stop) {
+            count++;
+            if (count >= 30) {
+                checkThread();
+                count = 0;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(1)); // 每隔 30 秒发送一次 PING 命令
+        }
+    });
+    _check_thread.detach();
+
     LOG_INFO("Redis连接创建成功，连接池大小：{}", _conns.size());
+}
+
+void RedisConnPool::checkThread()
+{
+    size_t pool_size;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        pool_size = _conns.size();
+    }
+
+    for (int i = 0; i < pool_size && !_b_stop; ++i) {
+        redisContext *ctx = nullptr;
+        bool b_success = false;
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            if(_conns.empty() || _b_stop){
+                break;
+            }
+            ctx = std::move(_conns.front());
+            _conns.pop();
+        }
+
+        redisReply *reply = nullptr;
+        try {
+            reply = (redisReply *)redisCommand(ctx, "PING");
+            if (ctx->err) {
+                LOG_ERROR("Connection error: {}", ctx->err);
+                if (reply) {
+                    freeReplyObject(reply);
+                }
+
+                redisFree(ctx);
+                _fail_count++;
+                continue;
+            }
+
+            if (!reply || reply->type == REDIS_REPLY_ERROR) {
+                LOG_ERROR("reply is null, redis ping failed");
+                if (reply) {
+                    freeReplyObject(reply);
+                }
+                redisFree(ctx);
+                _fail_count++;
+                continue;
+            }
+
+            freeReplyObject(reply);
+            returnConnection(ctx);
+        } catch (std::exception &exp) {
+            if (reply) {
+                freeReplyObject(reply);
+            }
+
+            redisFree(ctx);
+            _fail_count++;
+        }
+
+        //执行重连操作
+        while (_fail_count > 0) {
+            auto res = reconnect();
+            if (res) {
+                _fail_count--;
+            } else {
+                //留给下次再重试
+                break;
+            }
+        }
+    }
+}
+
+bool RedisConnPool::reconnect()
+{
+    auto ctx = redisConnect(_host, _port);
+    if (ctx == nullptr || ctx->err != 0) {
+        if (ctx != nullptr) {
+            redisFree(ctx);
+        }
+        return false;
+    }
+
+    auto reply = (redisReply *)redisCommand(ctx, "AUTH %s", _pwd);
+    if (reply->type == REDIS_REPLY_ERROR) {
+        LOG_ERROR("redis reconnect failed");
+        //执行成功 释放redisCommand执行后返回的redisReply所占用的内存
+        freeReplyObject(reply);
+        redisFree(ctx);
+        return false;
+    }
+    //执行成功 释放redisCommand执行后返回的redisReply所占用的内存
+    freeReplyObject(reply);
+    LOG_INFO("redis reconnect success");
+    returnConnection(ctx);
+    return true;
 }
 
 RedisConnPool::~RedisConnPool()
@@ -474,7 +585,10 @@ std::string RedisMgr::acquireLock(const std::string &lockName, int lockTimeout, 
     }
     Defer defer([&conn, this]() { _redisConnPool->returnConnection(conn); });
 
-    return DistLock::GetInstance().acquireLock(conn, lockName, lockTimeout, acquireTimeout);
+    std::string identifier =
+        DistLock::GetInstance().acquireLock(conn, lockName, lockTimeout, acquireTimeout);
+    LOG_INFO("acquireLock lockName:{}, identifier:{} ", lockName, identifier);
+    return identifier;
 }
 
 bool RedisMgr::releaseLock(const std::string &lockName, const std::string &identifier)
@@ -485,7 +599,9 @@ bool RedisMgr::releaseLock(const std::string &lockName, const std::string &ident
     }
     Defer defer([&conn, this]() { _redisConnPool->returnConnection(conn); });
 
-    return DistLock::GetInstance().releaseLock(conn, lockName, identifier);
+    auto b_fl = DistLock::GetInstance().releaseLock(conn, lockName, identifier);
+    LOG_INFO("releaseLock lockName:{}, identifier:{}, b_flag:{}", lockName, identifier, b_fl);
+    return b_fl;
 }
 
 void RedisMgr::IncreaseCount(std::string server_name)
@@ -498,7 +614,7 @@ void RedisMgr::IncreaseCount(std::string server_name)
     auto rd_res = HGet(LOGIN_COUNT, server_name);
 
     int count = 0;
-    if(!rd_res.empty()){
+    if (!rd_res.empty()) {
         count = std::stoi(rd_res);
     }
 
@@ -517,7 +633,7 @@ void RedisMgr::DecreaseCount(std::string server_name)
     auto rd_res = HGet(LOGIN_COUNT, server_name);
 
     int count = 0;
-    if(!rd_res.empty()){
+    if (!rd_res.empty()) {
         count = std::stoi(rd_res);
     }
 
@@ -540,7 +656,7 @@ void RedisMgr::DelCount(std::string server_name)
     auto lock_key = LOCK_COUNT;
     auto identifier = acquireLock(LOCK_COUNT, LOCK_TIME_OUT, ACQUIRE_TIME_OUT);
     Defer defer([this, identifier, lock_key]() { releaseLock(lock_key, identifier); });
-    
+
     HDel(LOGIN_COUNT, server_name);
 }
 

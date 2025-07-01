@@ -1,11 +1,3 @@
-/*
- * @Author: star-cs
- * @Date: 2025-06-07 21:00:03
- * @LastEditTime: 2025-06-10 16:59:36
- * @FilePath: /CChat_server/GateServer/src/asio_io_service_pool.h
- * @Description:  asio 线程池，每个线程独占一个 iocontext
- */
-
 #pragma once
 #include "common.h"
 #include "singleton.h"
@@ -40,5 +32,6 @@ namespace core
         std::vector<WorkPtr> _works;
         std::vector<std::thread> _threads;
         std::size_t _nextIOService;
+        std::atomic<bool> _stopped;
     };
 } // namespace core

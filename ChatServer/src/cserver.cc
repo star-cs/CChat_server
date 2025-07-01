@@ -8,6 +8,7 @@
 #include "cserver.h"
 #include "asio_io_service_pool.h"
 #include "common.h"
+#include "csession.h"
 #include "logic_system.h"
 #include "user_mgr.h"
 #include "configmgr.h"
@@ -50,6 +51,7 @@ bool CServer::CheckValid(std::string sessionId)
 
 void CServer::on_timer(const boost::system::error_code &error)
 {
+    // 心跳定时器
     std::cout << "on_timer" << std::endl;
     if (error) {
         std::cout << "timer error: " << error.message() << std::endl;
@@ -57,18 +59,22 @@ void CServer::on_timer(const boost::system::error_code &error)
     }
     std::vector<std::shared_ptr<CSession>> _expired_session;
     int session_count = 0;
+
+    std::map<std::string, std::shared_ptr<CSession>> sessions_copy;
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        time_t now = std::time(nullptr);
-        for (auto iter = _sessions.begin(); iter != _sessions.end(); iter++) {
-            auto b_expire = iter->second->IsHeartbeatExpired(now);
-            if (b_expire) {
-                iter->second->Close();
-                _expired_session.push_back(iter->second);
-                continue;
-            }
-            session_count++;
+        sessions_copy = _sessions;
+    }
+
+    time_t now = std::time(nullptr);
+    for (auto iter = sessions_copy.begin(); iter != sessions_copy.end(); iter++) {
+        auto b_expire = iter->second->IsHeartbeatExpired(now);
+        if (b_expire) {
+            iter->second->Close();
+            _expired_session.push_back(iter->second);
+            continue;
         }
+        session_count++;
     }
 
     // 更新 LOGIN_COUNT 数量

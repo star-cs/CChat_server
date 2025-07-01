@@ -1,16 +1,16 @@
 /*
  * @Author: star-cs
- * @Date: 2025-06-07 21:00:08
- * @LastEditTime: 2025-06-29 21:07:07
- * @FilePath: /CChat_server/ChatServer/src/asio_io_service_pool.cc
- * @Description:
+ * @Date: 2025-06-30 11:24:36
+ * @LastEditTime: 2025-06-30 22:23:06
+ * @FilePath: /CChat_server/Common/src/asio_io_service_pool.cc
+ * @Description: 
  */
 #include "asio_io_service_pool.h"
 #include "configmgr.h"
 
 namespace core
 {
-AsioIOServicePool::AsioIOServicePool(std::size_t size) : _nextIOService(0)
+AsioIOServicePool::AsioIOServicePool(std::size_t size) : _nextIOService(0), _stopped(false)
 {
     std::string threadNum = ConfigMgr::GetInstance()["IOServicePool"]["threadNum"];
     std::size_t ioServicePoolnum = boost::lexical_cast<std::size_t>(threadNum);
@@ -35,6 +35,7 @@ AsioIOServicePool::AsioIOServicePool(std::size_t size) : _nextIOService(0)
 AsioIOServicePool::~AsioIOServicePool()
 {
     std::cout << "AsioIOServicePool destruct" << std::endl;
+    Stop();
 }
 
 boost::asio::io_context &AsioIOServicePool::GetIOService()
@@ -48,6 +49,10 @@ boost::asio::io_context &AsioIOServicePool::GetIOService()
 
 void AsioIOServicePool::Stop()
 {
+    if(_stopped){
+        return;
+    }
+    _stopped = true;
     //因为仅仅执行work.reset并不能让iocontext从run的状态中退出
     //当iocontext已经绑定了读或写的监听事件后，还需要手动stop该服务。
     for (auto &work : _works) {

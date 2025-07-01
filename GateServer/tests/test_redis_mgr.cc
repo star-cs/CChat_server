@@ -1,11 +1,11 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-08 18:42:48
- * @LastEditTime: 2025-06-08 18:54:57
+ * @LastEditTime: 2025-06-30 20:04:49
  * @FilePath: /CChat_server/GateServer/tests/test_redis_mgr.cc
  * @Description:
  */
-#include "../src/redis_mgr.h"
+#include "redis_mgr.h"
 
 using namespace core;
 

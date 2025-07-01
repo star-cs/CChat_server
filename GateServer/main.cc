@@ -1,26 +1,41 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-06 09:55:24
- * @LastEditTime: 2025-06-20 22:01:06
+ * @LastEditTime: 2025-06-30 19:57:11
  * @FilePath: /CChat_server/GateServer/main.cc
  * @Description: GateServer 网关服务器 main
  */
-#include "src/common.h"
-#include "src/configmgr.h"
+#include "common.h"
+#include "configmgr.h"
+#include "env.h"
 #include "src/cserver.h"
-#include "src/asio_io_service_pool.h"
-#include "src/redis_mgr.h"
-#include "src/mysql_mgr.h"
+#include "asio_io_service_pool.h"
+#include "redis_mgr.h"
+#include "mysql_mgr.h"
 #include "src/grpc_client.h"
 
-int main()
+int main(int argc, char **argv)
 {   
+    auto env = core::Env::GetInstance();
+    env->parse(argc, argv);
+    // 检查选项
+    if (env->hasOption("h") || env->hasOption("help")) {
+        std::cout << "Usage: " << argv[0] << " [options] [files...]\n"
+                  << "Options:\n"
+                  << "  -h, --help      Show help\n"
+                  << "  -f <file>       config.ini file\n";
+        return 0;
+    }
+
+    // 获取选项值
+    std::string config_name = env->getOption("f", "config.ini");
+    auto &cfg = core::ConfigMgr::GetInstance(config_name);
+    auto server_name = cfg.GetSelfName();
     auto logger = coro::log::logger::get_logger();
     std::shared_ptr<core::CServer> server;
     try
     {
-        core::ConfigMgr gCfgMgr = core::ConfigMgr::GetInstance(); // 初始化导入 config.ini
-        std::string gate_port_str = gCfgMgr["GateServer"]["port"];
+        std::string gate_port_str = cfg["GateServer"]["port"];
         unsigned short port = boost::lexical_cast<unsigned short>(gate_port_str);
 
         core::RedisMgr::GetInstance();
