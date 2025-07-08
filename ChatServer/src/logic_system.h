@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 09:51:32
- * @LastEditTime: 2025-06-29 17:19:58
+ * @LastEditTime: 2025-07-03 17:10:49
  * @FilePath: /CChat_server/ChatServer/src/logic_system.h
  * @Description: 
  */
@@ -28,7 +28,7 @@ class LogicSystem : public Singleton<LogicSystem>
 
 public:
     ~LogicSystem();
-    void setCServer(std::shared_ptr<CServer> pCServer){_p_server = pCServer;}
+    void setCServer(std::shared_ptr<CServer> pCServer) { _p_server = pCServer; }
     void PostMsgToQue(std::shared_ptr<LogicNode> msg);
 
 private:
@@ -47,6 +47,10 @@ private:
 
     bool GetFriendApplyInfo(int uid, std::vector<std::shared_ptr<ApplyInfo>> &apply_list);
     bool GetFriendList(int uid, std::vector<std::shared_ptr<UserInfo>> &friend_list);
+
+    bool GetUserThreads(int64_t userId, int64_t lastId, int pageSize,
+                        std::vector<std::shared_ptr<ChatThreadInfo>> &threads, bool &loadMore,
+                        int &nextLastId);
 
     // 处理 ID_CHAT_LOGIN 消息
     void LoginHandler(std::shared_ptr<CSession> cession, const short &msg_id,
@@ -69,7 +73,14 @@ private:
                          const std::string &msg_data);
 
     // 处理客户端发来的心跳包
-    void HeartBeatHandler(std::shared_ptr<CSession> session, const short& msg_id, const std::string& msg_data);
+    void HeartBeatHandler(std::shared_ptr<CSession> session, const short &msg_id,
+                          const std::string &msg_data);
+
+    void GetUserThreadsHandler(std::shared_ptr<CSession> session, const short &msg_id,
+                               const std::string &msg_data);
+
+    void CreatePrivateChat(std::shared_ptr<CSession> session, const short &msg_id,
+                           const std::string &msg_data);
 
 private:
     std::thread _worker_thread;

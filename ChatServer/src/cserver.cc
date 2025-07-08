@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-15 20:44:34
- * @LastEditTime: 2025-06-29 20:02:19
+ * @LastEditTime: 2025-07-08 11:05:29
  * @FilePath: /CChat_server/ChatServer/src/cserver.cc
  * @Description:
  */
@@ -52,7 +52,7 @@ bool CServer::CheckValid(std::string sessionId)
 void CServer::on_timer(const boost::system::error_code &error)
 {
     // 心跳定时器
-    std::cout << "on_timer" << std::endl;
+    // std::cout << "on_timer" << std::endl;
     if (error) {
         std::cout << "timer error: " << error.message() << std::endl;
         return;

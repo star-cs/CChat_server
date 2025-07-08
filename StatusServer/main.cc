@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-14 15:33:20
- * @LastEditTime: 2025-06-30 20:06:11
+ * @LastEditTime: 2025-07-03 20:01:18
  * @FilePath: /CChat_server/StatusServer/main.cc
  * @Description:
  */
@@ -43,8 +43,6 @@ int main(int argc, char **argv)
     // 获取选项值
     std::string config_name = env->getOption("f", "config.ini");
     auto &cfg = core::ConfigMgr::GetInstance(config_name);
-    auto server_name = cfg.GetSelfName();
-
     auto logger = coro::log::logger::get_logger();
     try {
         core::RedisMgr::GetInstance();

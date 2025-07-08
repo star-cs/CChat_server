@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-20 21:10:30
- * @LastEditTime: 2025-06-29 19:04:58
+ * @LastEditTime: 2025-07-07 22:58:29
  * @FilePath: /CChat_server/ChatServer/src/grpc_chat_service_impl.h
  * @Description: ChatService gRPC server实现类
  */
@@ -23,10 +23,7 @@ using grpc::ServerContext;
 using chat::ChatService;
 using chat::AddFriendReq;
 using chat::AddFriendRsp;
-using chat::RplyFriendReq;
-using chat::RplyFriendRsp;
-using chat::SendChatMsgReq;
-using chat::SendChatMsgRsp;
+using chat::AddFriendMsg;
 using chat::AuthFriendReq;
 using chat::AuthFriendRsp;
 using chat::TextChatMsgReq;

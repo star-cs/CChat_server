@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-20 21:40:08
- * @LastEditTime: 2025-06-28 22:07:14
+ * @LastEditTime: 2025-07-08 15:00:11
  * @FilePath: /CChat_server/ChatServer/src/grpc_chat_service_impl.cc
  * @Description:
  */
@@ -62,13 +62,10 @@ Status ChatServiceImpl::NotifyAddFriend(ServerContext *context, const AddFriendR
 Status ChatServiceImpl::NotifyAuthFriend(ServerContext *context, const AuthFriendReq *request,
                                          AuthFriendRsp *response)
 {
-    // 通知 客户端，好友申请已经被 对方通过 ~
-    auto fromuid = request->fromuid();
+    //查找用户是否在本服务器
     auto touid = request->touid();
-    LOG_INFO("ChatServiceImpl::NotifyAuthFriend fromuid:{}, touid(auth):{}", fromuid, touid);
-
-    // 查询 fromuid 是否还在线
-    auto session = UserMgr::GetInstance()->GetSession(fromuid);
+    auto fromuid = request->fromuid();
+    auto session = UserMgr::GetInstance()->GetSession(touid);
 
     Defer defer([request, response]() {
         response->set_error(ErrorCodes::Success);
@@ -76,29 +73,42 @@ Status ChatServiceImpl::NotifyAuthFriend(ServerContext *context, const AuthFrien
         response->set_touid(request->touid());
     });
 
+    //用户不在内存中则直接返回
     if (session == nullptr) {
-        LOG_DEBUG("uid:{} session 不存在", fromuid);
         return Status::OK;
     }
 
+    //在内存中则直接发送通知对方
     Json::Value rtvalue;
     rtvalue["error"] = ErrorCodes::Success;
-    // rtvalue["fromuid"] = request->fromuid();
+    rtvalue["fromuid"] = request->fromuid();
     rtvalue["touid"] = request->touid();
 
-    // 获取到 touid 的 UserInfo，发送给 fromuid，作为 qt 结构体 AuthInfo 添加到 通讯录 内 ~
-    auto touidInfo = std::make_shared<UserInfo>();
-    bool b_info = GetBaseInfo(touid, touidInfo);
+    auto user_info = std::make_shared<UserInfo>();
+    bool b_info = GetBaseInfo(fromuid, user_info);
     if (b_info) {
-        rtvalue["name"] = touidInfo->name;
-        rtvalue["nick"] = touidInfo->nick;
-        rtvalue["icon"] = touidInfo->icon;
-        rtvalue["sex"] = touidInfo->sex;
+        // 同意方的
+        rtvalue["name"] = user_info->name;
+        rtvalue["nick"] = user_info->nick;
+        rtvalue["icon"] = user_info->icon;
+        rtvalue["sex"] = user_info->sex;
     } else {
         rtvalue["error"] = ErrorCodes::UidInvalid;
     }
-    LOG_DEBUG("{}", rtvalue.toStyledString());
-    session->Send(rtvalue.toStyledString(), ID_NOTIFY_AUTH_FRIEND_REQ);
+
+    for (auto &msg : request->textmsgs()) {
+        Json::Value chat;
+        chat["sender"] = msg.sender_id();
+        chat["msg_id"] = msg.msg_id();
+        chat["thread_id"] = msg.thread_id();
+        chat["unique_id"] = msg.unique_id();
+        chat["msg_content"] = msg.msgcontent();
+        rtvalue["chat_datas"].append(chat);
+    }
+
+    std::string return_str = rtvalue.toStyledString();
+
+    session->Send(return_str, ID_NOTIFY_AUTH_FRIEND_REQ);
     return Status::OK;
 }
 
@@ -118,12 +128,12 @@ Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext *context,
     rtvalue["fromuid"] = request->fromuid();
     rtvalue["touid"] = request->touid();
 
-    // 组装连天数据
+    // 组合 数据
     Json::Value text_array;
     for (auto &msg : request->textmsgs()) {
         Json::Value element;
         element["content"] = msg.msgcontent();
-        element["msgid"] = msg.msgid();
+        element["unique_id"] = msg.unique_id();
         text_array.append(element);
     }
     rtvalue["text_array"] = text_array;
@@ -207,7 +217,8 @@ Status ChatServiceImpl::NotifyKickUser(ServerContext *context, const KickUserReq
     return Status::OK;
 }
 
-void ChatServiceImpl::RegisterServer(std::shared_ptr<CServer> pServer){
+void ChatServiceImpl::RegisterServer(std::shared_ptr<CServer> pServer)
+{
     _p_server = pServer;
 }
 

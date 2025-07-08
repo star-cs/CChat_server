@@ -1,7 +1,7 @@
 <!--
  * @Author: star-cs
  * @Date: 2025-06-08 19:05:08
- * @LastEditTime: 2025-06-30 16:58:10
+ * @LastEditTime: 2025-07-07 19:45:07
  * @FilePath: /CChat_server/README.md
  * @Description: 
 -->
@@ -14,12 +14,18 @@
 
 > 📖 **CChat_server** 是一款面向企业和团队的 **协同办公软件后端服务端**，支持 **即时聊天、个人网盘、视频会议** 等功能，基于 CMake 开发及部署。
 
+[协同办公软件 QT前端仓库](https://github.com/star-cs/CChat_client)
+
+
 ```bash
 sudo apt-get install libmysqlcppconn-dev
 
 sudo apt-get install libboost-dev libboost-test-dev libboost-all-dev
-```
 
+# 检查 mysql 状态
+systemctl status mysql.service
+systemctl restart mysql
+```
 
 # 业务逻辑分析
 ## 登录注册
@@ -234,3 +240,185 @@ sequenceDiagram
         to.balance += amt;
     }
     ```
+
+## 聊天信息存储方案
+
+1. 客户端本地数据库缓存已经接受的消息(以后再做)  
+2. 客户端登录后，将本地数据的最大的消息id发送给服务器，服务器根据这个id去数据库查找，找到比这个id大的消息，将消息回传给客户端  
+3. 客户端登录后，先加载旧的数据，再差异加载未读取的数据即可。  
+
+### 重点（数据模型设计）
+> 消息 和 聊天会话 分离，通过 消息双方的uid 分别查询 ~ 
+#### 聊天消息表
+```sql
+CREATE TABLE `chat_message` (
+  `message_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `thread_id`  BIGINT UNSIGNED NOT NULL,
+  `sender_id`  BIGINT UNSIGNED NOT NULL,
+  `recv_id`    BIGINT UNSIGNED NOT NULL,
+  `content`    TEXT        NOT NULL,
+  `created_at` TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `status`     TINYINT     NOT NULL DEFAULT 0 COMMENT '0=未读 1=已读 2=撤回',
+  PRIMARY KEY (`message_id`),
+  KEY `idx_thread_created` (`thread_id`, `created_at`),
+  KEY `idx_thread_message` (`thread_id`, `message_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+> - message_id：全局自增主键，唯一标识一条消息。
+> - thread_id：会话（单聊、群聊）ID，同一会话下的所有消息共用一个 thread_id。
+> - sender_id：发送者用户 ID，指向用户表的主键。
+> - recv_id : 接收者用户ID，指向用户表主键。
+> - content：消息正文，TEXT 类型，适合存储普通文字。
+> - created_at：消息创建时间，自动记录插入时刻。
+> - updated_at：消息更新时间，可用于标记“撤回”（status 变更）、编辑等操作。
+> - status：消息状态，用于标记未读/已读/撤回等（也可扩展更多状态）。
+
+1. 主键索引：PRIMARY KEY (message_id) 用于唯一检索消息。
+2. 会话+时间索引：KEY (thread_id, created_at) 支持按会话分页、按时间范围查询。
+3. 会话+消息ID 索引：KEY (thread_id, message_id) 支持按 message_id 做增量拉取（WHERE thread_id=… AND message_id > since_id）。
+
+> 所有的消息都会通过 message_id 区分
+
+
+#### 会话消息表
+##### 全局聊天线程表
+```sql
+CREATE TABLE chat_thread (
+  `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `type`        ENUM('private','group') NOT NULL,
+  `created_at`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+);
+```
+
+
+##### 单聊表设计
+```sql
+CREATE TABLE `private_chat` (
+  `thread_id`   BIGINT UNSIGNED NOT NULL COMMENT '引用chat_thread.id',
+  `user1_id`    BIGINT UNSIGNED NOT NULL,
+  `user2_id`    BIGINT UNSIGNED NOT NULL,
+  `created_at`  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`thread_id`),
+  UNIQUE KEY `uniq_private_thread` (`user1_id`, `user2_id`), -- 保证每对用户只能有一个私聊会话
+  -- 以下两行就是我们要额外加的复合索引
+  KEY `idx_private_user1_thread` (`user1_id`, `thread_id`),
+  KEY `idx_private_user2_thread` (`user2_id`, `thread_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+- 通过 user1_id 和 user2_id 唯一确定一个单聊会话
+- 询某两个用户的单聊时，直接 SELECT 即可。
+
+
+##### 群聊表设计
+> 聊会话表只存储群聊本身的信息（如群名称、创建时间等），thread_id 是唯一标识符
+```sql
+CREATE TABLE `group_chat` (
+  `thread_id`   BIGINT UNSIGNED NOT NULL COMMENT '引用chat_thread.id',
+  `name`        VARCHAR(255)  DEFAULT NULL COMMENT '群聊名称',
+  `created_at`  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`thread_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+> 群聊成员表用于存储群聊中各成员的信息（包括角色、加入时间、禁言等）。
+```sql
+CREATE TABLE `group_chat_member` (
+  `thread_id`  BIGINT UNSIGNED NOT NULL COMMENT '引用 group_chat_thread.thread_id',
+  `user_id`    BIGINT UNSIGNED NOT NULL COMMENT '引用 user.user_id',
+  `role`       TINYINT       NOT NULL DEFAULT 0 COMMENT '0=普通成员,1=管理员,2=创建者',
+  `joined_at`  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `muted_until` TIMESTAMP    NULL COMMENT '如果被禁言，可存到什么时候',
+  PRIMARY KEY (`thread_id`, `user_id`),
+  KEY `idx_user_threads` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+
+
+#### ER图
+```mermaid
+erDiagram
+    chat_thread ||--o{ chat_message : "contains"
+    chat_thread ||--o| private_chat : "has"
+    chat_thread ||--o| group_chat : "has"
+    group_chat ||--o{ group_chat_member : "has"
+
+    chat_thread {
+        BIGINT_UNSIGNED id PK
+        ENUM[private，group] type
+        TIMESTAMP created_at
+    }
+    
+    chat_message {
+        BIGINT_UNSIGNED message_id PK
+        BIGINT_UNSIGNED thread_id FK
+        BIGINT_UNSIGNED sender_id
+        BIGINT_UNSIGNED recv_id
+        TEXT content
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+        TINYINT status
+    }
+    
+    private_chat {
+        BIGINT_UNSIGNED thread_id PK,FK
+        BIGINT_UNSIGNED user1_id
+        BIGINT_UNSIGNED user2_id
+        TIMESTAMP created_at
+    }
+    
+    group_chat {
+        BIGINT_UNSIGNED thread_id PK,FK
+        VARCHAR(255) name
+        TIMESTAMP created_at
+    }
+    
+    group_chat_member {
+        BIGINT_UNSIGNED thread_id PK,FK
+        BIGINT_UNSIGNED user_id PK
+        TINYINT role
+        TIMESTAMP  joined_at
+        TIMESTAMP muted_until
+    }
+```
+
+### 单聊
+1. 创建会话
+    - 查 private_chat表 是否已经有了聊天会话
+    - 用户A(1001)和用户B(1002)首次聊天时，在chat_thread创建type='private'记录(id=1)
+    - private_chat插入记录： (thread_id=1, user1_id=1001, user2_id=1002)
+    > 整个过程需要保证事务并使用行级锁，保证并发。⭐⭐⭐  
+    > 1. 启动事务；`setAutoCommit(false)`
+    > 2. 行级锁；`... FOR UPDATE` 对查到的记录加上行级锁。第一个线程获得锁并查询（结果为空）；第二个线程会被阻塞在SELECT语句，直到第一个线程`提交事务释放锁`。  
+    
+2. 发送消息
+    - 写入chat_message
+        ```sql
+        INSERT INTO chat_message(thread_id, sender_id, recv_id, content)
+        VALUES (1, 1001, 1002, '你好！');
+        ```
+3. 消息状态更新：
+    - B阅读消息后:
+        ```sql
+        UPDATE chat_message 
+        SET status = 1 
+        WHERE thread_id = 1 AND message_id = [消息ID];
+        ```
+
+### 群聊
+1. 创建群聊：
+    - 在 chat_thread 创建 type='group' 的记录 (thread_id=2)
+    - 在 group_chat 插入记录: (thread_id=2, name='项目群')
+    - 在 group_chat_member 插入成员: (2,1001,2), (2,1002,0), (2,1003,0)
+2. 发送群消息：
+    ```sql
+    INSERT INTO chat_message(thread_id, sender_id, recv_id, content)
+    VALUES (2, 1001, 0, '大家注意截止时间！');
+    ```
+    - recv_id = 0 表示群组消息
+    - 实际接收者是所有群成员
+3. 已读状态管理：
+    - 单独设计 message_read 表，记录哪些用户在何时已读了该消息，字段如(message_id, user_id, read_at)。
+

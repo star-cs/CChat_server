@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-15 21:16:33
- * @LastEditTime: 2025-06-29 17:33:10
+ * @LastEditTime: 2025-07-08 09:55:48
  * @FilePath: /CChat_server/ChatServer/src/csession.cc
  * @Description:
  */
@@ -171,7 +171,6 @@ void CSession::AsyncReadBody(int total_len)
                 _recv_msg_node->_cur_len += bytes_read;
                 _recv_msg_node->_data[_recv_msg_node->_total_len] =
                     '\0'; // 方便识别到 \0 字符串进行截断
-                LOG_INFO("receive data is {}", _recv_msg_node->_data);
 
                 // 将消息投递到逻辑队列中
                 LogicSystem::GetInstance()->PostMsgToQue(
@@ -259,7 +258,7 @@ bool CSession::IsHeartbeatExpired(time_t now)
 {
     double diff_sec = std::difftime(now, _last_heartbeat);
     if (diff_sec > HEARTBEAT_TIMEOUT) {
-        LOG_DEBUG("heartbeat expired, session id is  {}", _session_id);
+        LOG_INFO("heartbeat expired, session id is  {}", _session_id);
         return true;
     }
 

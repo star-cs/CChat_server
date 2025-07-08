@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-30 11:24:36
- * @LastEditTime: 2025-06-30 22:39:47
+ * @LastEditTime: 2025-07-07 23:00:50
  * @FilePath: /CChat_server/Common/src/common.h
  * @Description: 
  */
@@ -98,7 +98,7 @@ enum ErrorCodes {
     PasswdInvalid = 1009,  // 登录密码失败
     TokenInvalid = 1010,   // Token失效
     UidInvalid = 1011,     // uid无效
-
+    CREATE_CHAT_FAILED = 1012,  // 创建新聊天会话失败。
 };
 
 // Defer类
@@ -116,11 +116,11 @@ private:
 };
 
 enum MSG_IDS {
-    ID_CHAT_LOGIN = 1005,               //登陆聊天服务器
-    ID_CHAT_LOGIN_RSP = 1006,           //登陆聊天服务器回包
+    ID_CHAT_LOGIN = 1005,               //用户登陆
+    ID_CHAT_LOGIN_RSP = 1006,           //用户登陆回包
     ID_SEARCH_USER_REQ = 1007,          //用户搜索请求
     ID_SEARCH_USER_RSP = 1008,          //搜索用户回包
-    ID_ADD_FRIEND_REQ = 1009,           //添加好友申请
+    ID_ADD_FRIEND_REQ = 1009,           //申请添加好友请求
     ID_ADD_FRIEND_RSP = 1010,           //申请添加好友回复
     ID_NOTIFY_ADD_FRIEND_REQ = 1011,    //通知用户添加好友申请
     ID_AUTH_FRIEND_REQ = 1013,          //认证好友请求
@@ -129,10 +129,13 @@ enum MSG_IDS {
     ID_TEXT_CHAT_MSG_REQ = 1017,        //文本聊天信息请求
     ID_TEXT_CHAT_MSG_RSP = 1018,        //文本聊天信息回复
     ID_NOTIFY_TEXT_CHAT_MSG_REQ = 1019, //通知用户文本聊天信息
-    ID_NOTIFY_OFF_LINE_REQ = 1020,      //通知客户端自动退出 （踢人）
-
-    ID_HEART_BEAT_REQ = 1012, // 心跳请求
-    ID_HEART_BEAT_RSP = 1012, // 心跳回包
+    ID_NOTIFY_OFF_LINE_REQ = 1021,      //通知用户下线
+    ID_HEART_BEAT_REQ = 1023,           //心跳请求
+    ID_HEART_BEAT_RSP = 1024,           //心跳回复
+    ID_LOAD_CHAT_THREAD_REQ = 1025,     //加载聊天线程请求
+    ID_LOAD_CHAT_THREAD_RSP = 1026,     //加载聊天线程回复
+    ID_CREATE_PRIVATE_CHAT_REQ = 1027,  //创建私聊请求
+    ID_CREATE_PRIVATE_CHAT_RSP = 1028,  //创建私聊回复
 };
 
 struct UserInfo {
@@ -161,6 +164,22 @@ struct ApplyInfo {
     std::string _nick;
     int _sex;
     int _status;
+};
+
+//聊天线程会话信息
+struct ChatThreadInfo {
+    int _thread_id;
+    std::string _type; // "private" or "group"
+    int _user1_id;     // 私聊时对应 private_chat.user1_id；群聊时设为 0
+    int _user2_id;     // 私聊时对应 private_chat.user2_id；群聊时设为 0
+};
+
+struct AddFriendmsg{
+    int sender_id ;
+    std::string unique_id;
+    int msg_id;
+    int thread_id;
+    std::string msgcontent;
 };
 
 } // namespace core

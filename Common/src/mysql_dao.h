@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-11 11:22:37
- * @LastEditTime: 2025-06-30 19:14:33
+ * @LastEditTime: 2025-07-07 22:45:59
  * @FilePath: /CChat_server/Common/src/mysql_dao.h
  * @Description: 数据 DAO 层
  * 
@@ -18,6 +18,7 @@
 #include <cppconn/prepared_statement.h>
 
 #include "common.h"
+
 
 namespace core
 {
@@ -75,22 +76,30 @@ public:
     int RegUser(const std::string &name, const std::string &email, const std::string &pwd);
 
     // // 分离出每一步查询操作
-    int RegUserTransaction(const std::string& name, const std::string& email, const std::string& pwd, const std::string& icon);
-    bool CheckEmail(const std::string& name, const std::string & email);
-    bool UpdatePwd(const std::string& email, const std::string& newpwd);
-    bool CheckPwd(const std::string& email, const std::string& pwd, UserInfo& userInfo);
+    int RegUserTransaction(const std::string &name, const std::string &email,
+                           const std::string &pwd, const std::string &icon);
+    bool CheckEmail(const std::string &name, const std::string &email);
+    bool UpdatePwd(const std::string &email, const std::string &newpwd);
+    bool CheckPwd(const std::string &email, const std::string &pwd, UserInfo &userInfo);
 
     std::shared_ptr<UserInfo> GetUser(int uid);
     std::shared_ptr<UserInfo> GetUser(const std::string &name);
-    bool AddFriendApply(int uid, int touid);
+    bool AddFriendApply(int uid, int touid, const std::string &desc, const std::string &bakname);
     bool AuthFriendApply(int fromuid, int touid);
-    bool AddFriend(int fromuid, int touid);
+    bool AddFriend(int fromuid, int touid, const std::string &bakname, const std::string &desc,
+                   std::vector<std::shared_ptr<AddFriendmsg>> &chat_datas);
     // 获取 touid 接收到的所有 好友申请
     bool GetApplyList(int touid, std::vector<std::shared_ptr<ApplyInfo>> &applyList, int begin,
                       int limit = 10);
 
     // 获取 self_id 所有的 好友信息
     bool GetFriendList(int self_id, std::vector<std::shared_ptr<UserInfo>> &user_info_list);
+
+    bool GetUserThreads(int64_t userId, int64_t lastId, int pageSize,
+                        std::vector<std::shared_ptr<ChatThreadInfo>> &threads, bool &loadMore,
+                        int &nextLastId);
+
+    bool CreatePrivateChat(int user1_id, int user2_id, int &thread_id);
 
 private:
     std::unique_ptr<MySqlPool> _pool;

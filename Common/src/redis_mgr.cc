@@ -66,7 +66,7 @@ void RedisConnPool::checkThread()
         bool b_success = false;
         {
             std::lock_guard<std::mutex> lock(_mutex);
-            if(_conns.empty() || _b_stop){
+            if (_conns.empty() || _b_stop) {
                 break;
             }
             ctx = std::move(_conns.front());

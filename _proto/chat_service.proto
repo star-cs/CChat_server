@@ -1,91 +1,96 @@
-syntax="proto3";
+syntax = "proto3";
 
 package chat;
 
-service ChatService {
-	rpc NotifyAddFriend(AddFriendReq) returns (AddFriendRsp) {}
-	rpc RplyAddFriend(RplyFriendReq) returns (RplyFriendRsp) {}
-	rpc SendChatMsg(SendChatMsgReq) returns (SendChatMsgRsp) {}
-	rpc NotifyAuthFriend(AuthFriendReq) returns (AuthFriendRsp) {}
-	rpc NotifyTextChatMsg(TextChatMsgReq) returns (TextChatMsgRsp){}
+service ChatService
+{
+    rpc NotifyAddFriend(AddFriendReq) returns(AddFriendRsp)
+    {
+    }
+    rpc NotifyAuthFriend(AuthFriendReq) returns(AuthFriendRsp)
+    {
+    }
 
-	rpc NotifyKickUser(KickUserReq) returns (KickUserRsp) {}
+    rpc NotifyTextChatMsg(TextChatMsgReq) returns(TextChatMsgRsp)
+    {
+    }
+
+    rpc NotifyKickUser(KickUserReq) returns(KickUserRsp)
+    {
+    }
 }
 
-message AddFriendReq {
-	int32  applyuid = 1;
-	string applyname = 2;
-	string desc = 3;
-	string icon = 4;
-	string nick = 5;
-	int32  sex = 6;
-	int32  touid = 7;
+message AddFriendReq
+{
+    int32 applyuid = 1;
+    string applyname = 2;
+    string desc = 3;
+    string icon = 4;
+    string nick = 5;
+    int32 sex = 6;
+    int32 touid = 7;
 }
 
-message AddFriendRsp {
-	int32 error = 1;
-	int32 applyuid = 2;
-	int32 touid = 3;
+message AddFriendRsp
+{
+    int32 error = 1;
+    int32 applyuid = 2;
+    int32 touid = 3;
 }
 
-message RplyFriendReq {
-	int32 rplyuid = 1;
-	bool  agree = 2;
-	int32 touid = 3;
-}
-
-message RplyFriendRsp {
-	int32 error = 1;
-	int32 rplyuid = 2;
-	int32 touid = 3;
-}
-
-message SendChatMsgReq{
-		int32 fromuid = 1;
-		int32 touid = 2;
-		string message = 3;
-}
-
-message SendChatMsgRsp{
-		int32 error = 1;
-		int32 fromuid = 2;
-		int32 touid = 3;
-}
-
-message AuthFriendReq{
-	int32 fromuid = 1;
-	int32 touid = 2;
-}
-
-message AuthFriendRsp{
-	int32 error = 1;
-	int32 fromuid = 2;
-	int32 touid = 3;
-}
-
-message TextChatMsgReq {
-	int32 fromuid = 1;
+message AuthFriendReq
+{
+    int32 fromuid = 1;
     int32 touid = 2;
-	repeated TextChatData textmsgs = 3;
+    repeated AddFriendMsg textmsgs = 3;		// 通过 对方的好友申请，发送的 默认 聊天语句（例如：我们已经是好友了~）
 }
 
-message TextChatData{
-	string msgid = 1;
-	string msgcontent = 2;
+message AuthFriendRsp
+{
+    int32 error = 1;
+    int32 fromuid = 2;
+    int32 touid = 3;
 }
 
-message TextChatMsgRsp {
-	int32 error = 1;
-	int32 fromuid = 2;
-	int32 touid = 3; 
-	repeated TextChatData textmsgs = 4;
+message AddFriendMsg
+{
+    int32 sender_id = 1;
+    string unique_id = 2;
+    int32 msg_id = 3;
+    int32 thread_id = 4;
+    string msgcontent = 5;
 }
 
-message KickUserReq{
+message TextChatMsgReq
+{
+    int32 fromuid = 1;
+    int32 touid = 2;
+    repeated TextChatData textmsgs = 3;
+}
+
+message TextChatData
+{
+    string unique_id = 1;  // 客户端 初始化消息的 uid
+    int32 msg_id = 2;      // 消息保存到 数据后的 msg_id
+    int32 thread_id = 3;   // 会话id
+    string msgcontent = 4; // 文本内容
+}
+
+message TextChatMsgRsp
+{
+    int32 error = 1;
+    int32 fromuid = 2;
+    int32 touid = 3;
+    repeated TextChatData textmsgs = 4;
+}
+
+message KickUserReq
+{
     int32 uid = 1;
 }
 
-message KickUserRsp{
+message KickUserRsp
+{
     int32 error = 1;
     int32 uid = 2;
 }

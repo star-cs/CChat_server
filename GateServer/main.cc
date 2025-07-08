@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-06 09:55:24
- * @LastEditTime: 2025-06-30 19:57:11
+ * @LastEditTime: 2025-07-03 20:01:06
  * @FilePath: /CChat_server/GateServer/main.cc
  * @Description: GateServer 网关服务器 main
  */
@@ -30,7 +30,6 @@ int main(int argc, char **argv)
     // 获取选项值
     std::string config_name = env->getOption("f", "config.ini");
     auto &cfg = core::ConfigMgr::GetInstance(config_name);
-    auto server_name = cfg.GetSelfName();
     auto logger = coro::log::logger::get_logger();
     std::shared_ptr<core::CServer> server;
     try

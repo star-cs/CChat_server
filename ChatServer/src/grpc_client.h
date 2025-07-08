@@ -1,14 +1,13 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 11:02:39
- * @LastEditTime: 2025-06-28 21:42:33
+ * @LastEditTime: 2025-07-07 20:32:17
  * @FilePath: /CChat_server/ChatServer/src/grpc_client.h
  * @Description:
  */
 #pragma once
 
 #include <grpcpp/grpcpp.h>
-#include "chat_service.pb.h"
 #include "common.h"
 #include "singleton.h"
 
@@ -32,10 +31,7 @@ using status::StatusService;
 using chat::ChatService;
 using chat::AddFriendReq;
 using chat::AddFriendRsp;
-using chat::RplyFriendReq;
-using chat::RplyFriendRsp;
-using chat::SendChatMsgReq;
-using chat::SendChatMsgRsp;
+using chat::AddFriendMsg;
 using chat::AuthFriendReq;
 using chat::AuthFriendRsp;
 using chat::TextChatMsgReq;
