@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-30 11:24:36
- * @LastEditTime: 2025-07-07 21:58:35
+ * @LastEditTime: 2025-07-08 22:33:29
  * @FilePath: /CChat_server/Common/src/mysql_mgr.cc
  * @Description: 
  */
@@ -85,6 +85,11 @@ bool MysqlMgr::GetUserThreads(int64_t userId, int64_t lastId, int pageSize,
 bool MysqlMgr::CreatePrivateChat(int user1_id, int user2_id, int &thread_id)
 {
     return _dao.CreatePrivateChat(user1_id, user2_id, thread_id);
+}
+
+std::shared_ptr<PageResult> MysqlMgr::LoadChatMsg(int thread_id, int message_id, int page_size)
+{
+    return _dao.LoadChatMsg(thread_id, message_id, page_size);
 }
 
 } // namespace core

@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-11 11:22:37
- * @LastEditTime: 2025-07-07 22:45:59
+ * @LastEditTime: 2025-07-08 22:34:56
  * @FilePath: /CChat_server/Common/src/mysql_dao.h
  * @Description: 数据 DAO 层
  * 
@@ -18,7 +18,6 @@
 #include <cppconn/prepared_statement.h>
 
 #include "common.h"
-
 
 namespace core
 {
@@ -100,6 +99,8 @@ public:
                         int &nextLastId);
 
     bool CreatePrivateChat(int user1_id, int user2_id, int &thread_id);
+
+    std::shared_ptr<PageResult> LoadChatMsg(int thread_id, int message_id, int page_size);
 
 private:
     std::unique_ptr<MySqlPool> _pool;

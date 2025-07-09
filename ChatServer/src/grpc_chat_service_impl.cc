@@ -48,7 +48,7 @@ Status ChatServiceImpl::NotifyAddFriend(ServerContext *context, const AddFriendR
     rtvalue["error"] = ErrorCodes::Success;
     rtvalue["applyuid"] = request->applyuid();
     rtvalue["applyname"] = request->applyname();
-    rtvalue["desc"] = request->desc();
+    rtvalue["desc"] = request->desc();  // 用户的个人签名
     rtvalue["icon"] = request->icon();
     rtvalue["sex"] = request->sex();
     rtvalue["nick"] = request->nick();
@@ -63,6 +63,8 @@ Status ChatServiceImpl::NotifyAuthFriend(ServerContext *context, const AuthFrien
                                          AuthFriendRsp *response)
 {
     //查找用户是否在本服务器
+    // fromuid 同意方，touid 申请方
+    // 通知申请方，同意方已经同意好友申请
     auto touid = request->touid();
     auto fromuid = request->fromuid();
     auto session = UserMgr::GetInstance()->GetSession(touid);
@@ -92,6 +94,7 @@ Status ChatServiceImpl::NotifyAuthFriend(ServerContext *context, const AuthFrien
         rtvalue["nick"] = user_info->nick;
         rtvalue["icon"] = user_info->icon;
         rtvalue["sex"] = user_info->sex;
+        rtvalue["desc"] = user_info->desc;
     } else {
         rtvalue["error"] = ErrorCodes::UidInvalid;
     }

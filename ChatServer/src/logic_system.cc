@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 10:00:05
- * @LastEditTime: 2025-07-08 21:27:45
+ * @LastEditTime: 2025-07-09 11:28:04
  * @FilePath: /CChat_server/ChatServer/src/logic_system.cc
  * @Description:
  */
@@ -150,6 +150,10 @@ void LogicSystem::ResgisterCallBack()
         std::make_pair(MSG_IDS::ID_CREATE_PRIVATE_CHAT_REQ,
                        std::bind(&LogicSystem::CreatePrivateChat, this, std::placeholders::_1,
                                  std::placeholders::_2, std::placeholders::_3)));
+    // 加载 聊天会话内容
+    _fun_callbacks[ID_LOAD_CHAT_MSG_REQ] =
+        std::bind(&LogicSystem::LoadChatMsg, this, std::placeholders::_1, std::placeholders::_2,
+                  std::placeholders::_3);
 }
 
 bool LogicSystem::GetBaseInfo(int uid, std::shared_ptr<UserInfo> &user_info)
@@ -595,12 +599,12 @@ void LogicSystem::AddFriendApply(std::shared_ptr<CSession> cession, const short 
             Json::Value notify;
             notify["error"] = ErrorCodes::Success;
             notify["applyuid"] = uid;
-            notify["name"] = apply_info->name;
-            notify["desc"] = desc;
             if (b_info) {
+                notify["name"] = apply_info->name;
                 notify["icon"] = apply_info->icon;
                 notify["sex"] = apply_info->sex;
                 notify["nick"] = apply_info->nick;
+                notify["desc"] = apply_info->desc; // 这个是用户的个人签名
             }
             std::string return_str = notify.toStyledString();
             session->Send(return_str, ID_NOTIFY_ADD_FRIEND_REQ);
@@ -612,9 +616,9 @@ void LogicSystem::AddFriendApply(std::shared_ptr<CSession> cession, const short 
     AddFriendReq add_req;
     add_req.set_applyuid(uid);
     add_req.set_touid(touid);
-    add_req.set_applyname(apply_info->name);
-    add_req.set_desc(desc);
     if (b_info) {
+        add_req.set_applyname(apply_info->name);
+        add_req.set_desc(apply_info->desc);
         add_req.set_icon(apply_info->icon);
         add_req.set_sex(apply_info->sex);
         add_req.set_nick(apply_info->nick);
@@ -651,7 +655,7 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> cession, const short
     LOG_INFO("add frient, from(auth):{}, to(apply):{}, backname:{}, desc:{}", fromuid, touid,
              backname, desc);
 
-    resp_json["uid"] = touid;
+    resp_json["uid"] = touid; // 把 申请方的 个人信息 + 打招呼语句回传给 同意方
     resp_json["error"] = ErrorCodes::Success;
 
     auto user_info = std::make_shared<UserInfo>();
@@ -663,6 +667,7 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> cession, const short
         resp_json["nick"] = user_info->nick;
         resp_json["icon"] = user_info->icon;
         resp_json["sex"] = user_info->sex;
+        resp_json["desc"] = user_info->desc;
     } else {
         resp_json["error"] = ErrorCodes::UidInvalid;
     }
@@ -675,6 +680,7 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> cession, const short
         MysqlMgr::GetInstance()->AddFriend(fromuid, touid, backname, desc, chat_datas);
     if (b_addFriend == false) {
         LOG_ERROR("AddFriend failed");
+        resp_json["error"] = ErrorCodes::AddFriendSQLError;
         return;
     }
 
@@ -709,7 +715,7 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> cession, const short
         }
         Json::Value notify;
         notify["error"] = ErrorCodes::Success;
-        // 同意方的基础信息
+        // 同意方的基础信息，发给 请求方
         notify["fromuid"] = fromuid;
         // notify["touid"] = touid;
         auto user_info = std::make_shared<UserInfo>();
@@ -719,19 +725,13 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> cession, const short
             notify["nick"] = user_info->nick;
             notify["icon"] = user_info->icon;
             notify["sex"] = user_info->sex;
+            notify["desc"] = user_info->desc;
         } else {
             notify["error"] = ErrorCodes::UidInvalid;
         }
 
-        for (auto &chat_data : chat_datas) {
-            Json::Value chat;
-            chat["sender"] = chat_data->sender_id;
-            chat["msg_id"] = chat_data->msg_id;
-            chat["thread_id"] = chat_data->thread_id;
-            chat["unique_id"] = chat_data->unique_id;
-            chat["msg_content"] = chat_data->msgcontent;
-            notify["chat_datas"].append(chat);
-        }
+        // 打招呼消息，要 同意方和申请方 都发送一遍
+        notify["chat_datas"].append(resp_json["chat_datas"]);
 
         session->Send(notify.toStyledString(), ID_NOTIFY_AUTH_FRIEND_REQ);
 
@@ -929,4 +929,46 @@ void LogicSystem::CreatePrivateChat(std::shared_ptr<CSession> session, const sho
     }
     rtvalue["thread_id"] = thread_id;
 }
+
+void LogicSystem::LoadChatMsg(std::shared_ptr<CSession> session, const short &msg_id,
+                              const std::string &msg_data)
+{
+
+    Json::Reader reader;
+    Json::Value root;
+    reader.parse(msg_data, root);
+    auto thread_id = root["thread_id"].asInt();
+    auto message_id = root["message_id"].asInt();
+
+    Json::Value rtvalue;
+    rtvalue["error"] = ErrorCodes::Success;
+    rtvalue["thread_id"] = thread_id;
+
+    Defer defer([this, &rtvalue, session]() {
+        std::string return_str = rtvalue.toStyledString();
+        session->Send(return_str, ID_LOAD_CHAT_MSG_RSP);
+    });
+
+    int page_size = 10;
+    std::shared_ptr<PageResult> res =
+        MysqlMgr::GetInstance()->LoadChatMsg(thread_id, message_id, page_size);
+    if (!res) {
+        rtvalue["error"] = ErrorCodes::LOAD_CHAT_FAILED;
+        return;
+    }
+
+    rtvalue["last_message_id"] = res->next_cursor;
+    rtvalue["load_more"] = res->load_more;
+    for (auto &chat : res->messages) {
+        Json::Value chat_data;
+        chat_data["sender"] = chat.sender_id;
+        chat_data["msg_id"] = chat.message_id;
+        chat_data["thread_id"] = chat.thread_id;
+        chat_data["unique_id"] = 0;
+        chat_data["msg_content"] = chat.content;
+        chat_data["chat_time"] = chat.chat_time;
+        rtvalue["chat_datas"].append(chat_data);
+    }
+}
+
 } // namespace core

@@ -1026,4 +1026,57 @@ bool MysqlDao::CreatePrivateChat(int user1_id, int user2_id, int &thread_id)
     return success;
 }
 
+std::shared_ptr<PageResult> MysqlDao::LoadChatMsg(int thread_id, int message_id, int page_size)
+{
+    auto conn = _pool->getConnection();
+    if (conn == nullptr) {
+        LOG_ERROR("DB connection unavailable");
+        return nullptr;
+    }
+    std::shared_ptr<PageResult> pageResult = std::make_shared<PageResult>();
+    pageResult->load_more = false;
+    pageResult->next_cursor = 0;
+
+    Defer defer([this, &conn]() { _pool->returnConnection(std::move(conn)); });
+
+    try {
+        std::unique_ptr<sql::PreparedStatement> stmt(
+            conn->_conn->prepareStatement("SELECT message_id, thread_id, sender_id, recv_id, "
+                                          "content, created_at, updated_at, status "
+                                          "FROM chat_message "
+                                          "WHERE thread_id = ? AND message_id > ? "
+                                          "ORDER BY message_id ASC " // ASC升序，DESC降序
+                                          "LIMIT ? "));
+        stmt->setInt(1, thread_id);
+        stmt->setInt(2, message_id);
+        stmt->setInt(3, page_size+1);
+                
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        while(res->next()){
+            ChatMessage msg;
+            msg.message_id = res->getInt("message_id");
+            msg.thread_id = res->getInt("thread_id");
+            msg.sender_id = res->getInt("sender_id");
+            msg.recv_id = res->getInt("recv_id");
+            msg.content = res->getString("content");
+            msg.chat_time = res->getString("created_at");
+            msg.status = res->getInt("status");
+            pageResult->messages.push_back(msg);
+        }
+
+        if(pageResult->messages.size() == page_size+1){
+            pageResult->load_more = true;
+            pageResult->messages.pop_back(); // 删除最后一个
+            pageResult->next_cursor = pageResult->messages.back().message_id;
+        }
+
+        return pageResult;
+
+    } catch (sql::SQLException &e) {
+        LOG_ERROR("LoadChatMsg failed: {} (Code: {}, State: {})", e.what(), e.getErrorCode(),
+                  e.getSQLState());
+        return nullptr;
+    }
+}
+
 } // namespace core

@@ -41,6 +41,9 @@ public:
 
     bool CreatePrivateChat(int user1_id, int user2_id, int &thread_id);
 
+    // 查找thread_id会话，以及从message_id开始查找，page_size条消息
+    std::shared_ptr<PageResult> LoadChatMsg(int thread_id, int message_id, int page_size);
+
 private:
     MysqlMgr();
     MysqlDao _dao;

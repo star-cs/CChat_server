@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-30 11:24:36
- * @LastEditTime: 2025-07-07 23:00:50
+ * @LastEditTime: 2025-07-08 22:55:39
  * @FilePath: /CChat_server/Common/src/common.h
  * @Description: 
  */
@@ -87,18 +87,20 @@ extern bool isPureDigit(const std::string &str);
 
 enum ErrorCodes {
     Success = 0,
-    Error_Json = 1001,     // Json解析错误
-    RPCFailed = 1002,      // RPC请求错误
-    VerifyExpired = 1003,  // 验证码过期
-    VerifyCodeErr = 1004,  // 验证码错误
-    UserExist = 1005,      // 用户已经存在
-    PasswdErr = 1006,      // 密码错误
-    EmailNotMatch = 1007,  // 邮箱不匹配
-    PasswdUpFailed = 1008, // 更新密码失败
-    PasswdInvalid = 1009,  // 登录密码失败
-    TokenInvalid = 1010,   // Token失效
-    UidInvalid = 1011,     // uid无效
-    CREATE_CHAT_FAILED = 1012,  // 创建新聊天会话失败。
+    Error_Json = 1001,         // Json解析错误
+    RPCFailed = 1002,          // RPC请求错误
+    VerifyExpired = 1003,      // 验证码过期
+    VerifyCodeErr = 1004,      // 验证码错误
+    UserExist = 1005,          // 用户已经存在
+    PasswdErr = 1006,          // 密码错误
+    EmailNotMatch = 1007,      // 邮箱不匹配
+    PasswdUpFailed = 1008,     // 更新密码失败
+    PasswdInvalid = 1009,      // 登录密码失败
+    TokenInvalid = 1010,       // Token失效
+    UidInvalid = 1011,         // uid无效
+    CREATE_CHAT_FAILED = 1012, // 创建新聊天会话失败。
+    LOAD_CHAT_FAILED = 1013,    // 加载会话消息失败
+    AddFriendSQLError = 1014, // 添加好友数据写入错误
 };
 
 // Defer类
@@ -136,6 +138,9 @@ enum MSG_IDS {
     ID_LOAD_CHAT_THREAD_RSP = 1026,     //加载聊天线程回复
     ID_CREATE_PRIVATE_CHAT_REQ = 1027,  //创建私聊请求
     ID_CREATE_PRIVATE_CHAT_RSP = 1028,  //创建私聊回复
+
+    ID_LOAD_CHAT_MSG_REQ = 1029, //创建加载聊天消息请求
+    ID_LOAD_CHAT_MSG_RSP = 1030, //创建加载聊天消息回复
 };
 
 struct UserInfo {
@@ -174,12 +179,30 @@ struct ChatThreadInfo {
     int _user2_id;     // 私聊时对应 private_chat.user2_id；群聊时设为 0
 };
 
-struct AddFriendmsg{
-    int sender_id ;
+struct AddFriendmsg {
+    int sender_id;
     std::string unique_id;
     int msg_id;
     int thread_id;
     std::string msgcontent;
+};
+
+//聊天消息信息
+struct ChatMessage{
+    int message_id;
+    int thread_id;
+    int sender_id;
+    int recv_id;
+    std::string content;
+    std::string chat_time;
+    int status;
+};
+
+// 聊天消息 查询结果
+struct PageResult{
+    std::vector<ChatMessage> messages;
+    bool load_more;
+    int next_cursor;    // 本页最后一条message_id，用于下次查询
 };
 
 } // namespace core

@@ -1,7 +1,7 @@
 /*
  * @Author: star-cs
  * @Date: 2025-06-16 09:51:32
- * @LastEditTime: 2025-07-03 17:10:49
+ * @LastEditTime: 2025-07-08 21:56:42
  * @FilePath: /CChat_server/ChatServer/src/logic_system.h
  * @Description: 
  */
@@ -81,6 +81,9 @@ private:
 
     void CreatePrivateChat(std::shared_ptr<CSession> session, const short &msg_id,
                            const std::string &msg_data);
+
+    void LoadChatMsg(std::shared_ptr<CSession> session, const short &msg_id,
+                     const std::string &msg_data);
 
 private:
     std::thread _worker_thread;
